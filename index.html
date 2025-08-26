@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 2.3 - Го Бадмин -->
+<!-- Версия 2.4 - Го Бадмин с интеграцией Telegram -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -387,13 +387,13 @@
             demoRooms: [
                 {
                     id: 1,
-                    name: 'Demo User', // Название комнаты = имя создателя
+                    name: 'Демо комната 1',
                     creator_id: 123,
                     member_count: 2
                 },
                 {
                     id: 2,
-                    name: 'John Doe', // Название комнаты = имя создателя
+                    name: 'Демо комната 2',
                     creator_id: 456,
                     member_count: 3
                 }
@@ -402,13 +402,13 @@
                 {
                     player_id: 123,
                     is_leader: true,
-                    name: 'Demo User',
+                    name: 'Демо игрок 1',
                     rating: 'B+'
                 },
                 {
                     player_id: 456,
                     is_leader: false,
-                    name: 'John Doe',
+                    name: 'Демо игрок 2',
                     rating: 'A-'
                 }
             ]
@@ -423,6 +423,9 @@
                 window.Telegram.WebApp.ready();
                 console.log('Telegram Mini App инициализирован');
             }
+            
+            // Принудительно обновляем кэш
+            console.log('Версия Mini App: 2.4 - ' + new Date().toISOString());
             
             setupEventListeners();
             showMainMenu();
