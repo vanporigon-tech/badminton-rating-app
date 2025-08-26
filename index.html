@@ -364,13 +364,26 @@
 
     <script>
         // Версия 2.3 - Го Бадмин
-        // Demo data for demonstration
+        // Получаем данные пользователя из Telegram Mini App
         const demoData = {
-            currentUser: {
-                id: 123,
-                first_name: 'Demo',
-                last_name: 'User'
-            },
+            currentUser: (() => {
+                // Пытаемся получить данные пользователя из Telegram Mini App
+                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                    const user = window.Telegram.WebApp.initDataUnsafe.user;
+                    return {
+                        id: user.id,
+                        first_name: user.first_name || 'Пользователь',
+                        last_name: user.last_name || ''
+                    };
+                } else {
+                    // Fallback для демо режима
+                    return {
+                        id: 123,
+                        first_name: 'Demo',
+                        last_name: 'User'
+                    };
+                }
+            })(),
             demoRooms: [
                 {
                     id: 1,
@@ -405,6 +418,12 @@
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
+            // Инициализируем Telegram Mini App
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                console.log('Telegram Mini App инициализирован');
+            }
+            
             setupEventListeners();
             showMainMenu();
         });
@@ -485,7 +504,13 @@
 
         function handleCreateRoom() {
             // Создаем комнату с названием, основанным на имени создателя
-            const roomName = `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`;
+            let roomName;
+            if (demoData.currentUser.last_name) {
+                roomName = `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`;
+            } else {
+                roomName = demoData.currentUser.first_name;
+            }
+            
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
@@ -503,7 +528,9 @@
                 // Simulate API calls with demo data
                 const room = demoData.demoRooms.find(r => r.id === roomId) || {
                     id: roomId,
-                    name: `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`,
+                    name: demoData.currentUser.last_name ? 
+                        `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}` : 
+                        demoData.currentUser.first_name,
                     creator_id: demoData.currentUser.id,
                     member_count: 1
                 };
@@ -514,7 +541,9 @@
                         {
                             player_id: demoData.currentUser.id,
                             is_leader: true,
-                            name: `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`,
+                            name: demoData.currentUser.last_name ? 
+                                `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}` : 
+                                demoData.currentUser.first_name,
                             rating: 'B+'
                         }
                     ],
