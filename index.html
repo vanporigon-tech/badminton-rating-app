@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- Версия 2.3 - Го Бадмин -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏸 Badminton Rating Mini App</title>
+    <title>🏸 Го Бадмин</title>
     <style>
         * {
             margin: 0;
@@ -38,13 +39,6 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-        }
-
-        .subtitle {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #b0b0b0;
-            font-size: 16px;
         }
 
         .btn {
@@ -92,6 +86,27 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+        }
+
         .section {
             display: block;
         }
@@ -126,27 +141,6 @@
             font-size: 14px;
         }
 
-        .input-field {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-size: 16px;
-            margin: 10px 0;
-        }
-
-        .input-field::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: #4CAF50;
-            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
-        }
-
         .message {
             padding: 12px 16px;
             border-radius: 8px;
@@ -171,6 +165,13 @@
             margin-bottom: 25px;
         }
 
+        .room-leader {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FFD700;
+            margin-bottom: 20px;
+        }
+
         .room-stats {
             display: flex;
             justify-content: center;
@@ -184,80 +185,6 @@
             border-radius: 20px;
             font-size: 14px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .teams-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 25px 0;
-            gap: 20px;
-        }
-
-        .team {
-            flex: 1;
-            text-align: center;
-        }
-
-        .team h4 {
-            margin-bottom: 15px;
-            font-size: 16px;
-            color: #b0b0b0;
-        }
-
-        .player-slot {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px dashed rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 8px 0;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .player-slot.filled {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
-        }
-
-        .slot-placeholder {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
-        }
-
-        .player-name {
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .center-net {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-width: 60px;
-        }
-
-        .net-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-
-        .vs-text {
-            font-size: 18px;
-            font-weight: 700;
-            color: #b0b0b0;
-            margin-bottom: 8px;
-        }
-
-        .net-line {
-            width: 2px;
-            height: 40px;
-            background: linear-gradient(to bottom, transparent, #b0b0b0, transparent);
         }
 
         .members-section {
@@ -357,16 +284,6 @@
                 margin: 10px;
             }
 
-            .teams-container {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .center-net {
-                transform: rotate(90deg);
-                margin: 20px 0;
-            }
-
             .room-stats {
                 flex-direction: column;
                 gap: 10px;
@@ -376,8 +293,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🏸 Badminton Rating</h1>
-        <p class="subtitle">Система рейтинга по Glicko-2</p>
+        <h1>🏸 Го Бадмин</h1>
 
         <!-- Главное меню -->
         <div id="main-menu" class="section">
@@ -394,48 +310,12 @@
             <button id="back-to-main-1" class="btn btn-back">← Назад</button>
         </div>
 
-        <!-- Создание комнаты -->
-        <div id="create-room" class="section hidden">
-            <h2>Создать новую игру</h2>
-            <input type="text" id="room-name-input" class="input-field" placeholder="Название комнаты:">
-            <button id="create-room-btn" class="btn btn-primary">Создать</button>
-            <button id="back-to-main-2" class="btn btn-back">← Назад</button>
-        </div>
-
         <!-- Детали комнаты -->
         <div id="room-details" class="section hidden">
             <div class="room-header">
-                <h3 id="room-name-display">Название комнаты</h3>
+                <div class="room-leader" id="room-leader-name">Имя лидера</div>
                 <div class="room-stats">
                     <span class="stat-item">👥 <span id="member-count">0</span>/4</span>
-                    <span class="stat-item">👑 Лидер: <span id="room-creator">ID</span></span>
-                </div>
-            </div>
-            
-            <div class="teams-container">
-                <div class="team">
-                    <h4>Слоты</h4>
-                    <div class="player-slot" id="left-slot-1">
-                        <div class="slot-placeholder">Пустой слот</div>
-                    </div>
-                    <div class="player-slot" id="left-slot-2">
-                        <div class="slot-placeholder">Пустой слот</div>
-                    </div>
-                </div>
-                
-                <div class="center-net">
-                    <div class="net-icon">🏸</div>
-                    <div class="net-line"></div>
-                </div>
-                
-                <div class="team">
-                    <h4>Слоты</h4>
-                    <div class="player-slot" id="right-slot-1">
-                        <div class="slot-placeholder">Пустой слот</div>
-                    </div>
-                    <div class="player-slot" id="right-slot-2">
-                        <div class="slot-placeholder">Пустой слот</div>
-                    </div>
                 </div>
             </div>
             
@@ -451,7 +331,7 @@
                     <button id="start-game-btn" class="btn btn-primary btn-large">
                         🚀 Начать игру
                     </button>
-                    <p class="game-rules">Игра начнется когда все слоты будут заполнены</p>
+                    <p class="game-rules">Игра начнется когда будет 2 или 4 игрока</p>
                 </div>
                 <div id="join-controls">
                     <button id="join-room-btn" class="btn btn-secondary">
@@ -483,6 +363,7 @@
     </div>
 
     <script>
+        // Версия 2.3 - Го Бадмин
         // Demo data for demonstration
         const demoData = {
             currentUser: {
@@ -493,13 +374,13 @@
             demoRooms: [
                 {
                     id: 1,
-                    name: '🏸 Вечерняя игра',
+                    name: 'Demo User', // Название комнаты = имя создателя
                     creator_id: 123,
                     member_count: 2
                 },
                 {
                     id: 2,
-                    name: '🎯 Тренировка',
+                    name: 'John Doe', // Название комнаты = имя создателя
                     creator_id: 456,
                     member_count: 3
                 }
@@ -531,16 +412,12 @@
         function setupEventListeners() {
             // Main menu buttons
             document.getElementById('search-game-btn').addEventListener('click', showSearchGames);
-            document.getElementById('create-game-btn').addEventListener('click', showCreateRoom);
+            document.getElementById('create-game-btn').addEventListener('click', handleCreateRoom);
 
             // Back buttons
             document.getElementById('back-to-main-1').addEventListener('click', showMainMenu);
-            document.getElementById('back-to-main-2').addEventListener('click', showMainMenu);
             document.getElementById('back-to-main-3').addEventListener('click', showMainMenu);
             document.getElementById('back-to-room').addEventListener('click', () => showRoomDetails(currentRoom.id));
-
-            // Create room
-            document.getElementById('create-room-btn').addEventListener('click', handleCreateRoom);
 
             // Room details
             document.getElementById('start-game-btn').addEventListener('click', handleStartGame);
@@ -585,18 +462,6 @@
             loadRooms();
         }
 
-        function showCreateRoom() {
-            if (currentRoom) {
-                const confirmed = confirm('Вы уверены что хотите выйти из этой комнаты?');
-                if (confirmed) {
-                    currentRoom = null;
-                } else {
-                    return;
-                }
-            }
-            showSection('create-room');
-        }
-
         function loadRooms() {
             const roomsList = document.getElementById('rooms-list');
             
@@ -619,14 +484,8 @@
         }
 
         function handleCreateRoom() {
-            const roomName = document.getElementById('room-name-input').value.trim();
-            
-            if (!roomName) {
-                showMessage('Введите название комнаты', 'error');
-                return;
-            }
-
-            // Simulate API call
+            // Создаем комнату с названием, основанным на имени создателя
+            const roomName = `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`;
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
@@ -636,7 +495,7 @@
 
             currentRoom = newRoom;
             showRoomDetails(newRoom.id);
-            showMessage('Комната создана успешно!', 'success');
+            showMessage(`Комната "${roomName}" создана успешно!`, 'success');
         }
 
         async function showRoomDetails(roomId) {
@@ -644,7 +503,7 @@
                 // Simulate API calls with demo data
                 const room = demoData.demoRooms.find(r => r.id === roomId) || {
                     id: roomId,
-                    name: 'Новая комната',
+                    name: `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`,
                     creator_id: demoData.currentUser.id,
                     member_count: 1
                 };
@@ -665,16 +524,9 @@
                 // Save current room
                 currentRoom = room;
 
-                // Update display
-                document.getElementById('room-name-display').textContent = room.name;
-                document.getElementById('room-creator').textContent = `ID: ${room.creator_id}`;
+                // Update display - название комнаты = имя лидера
+                document.getElementById('room-leader-name').textContent = room.name;
                 document.getElementById('member-count').textContent = membersData.total_count;
-
-                // Clear all slots
-                clearAllSlots();
-
-                // Fill team slots
-                fillTeamSlots(membersData.members);
 
                 // Display members list
                 displayMembersList(membersData.members);
@@ -709,29 +561,6 @@
                 console.error('Error showing room details:', error);
                 showMessage('Ошибка загрузки информации о комнате', 'error');
             }
-        }
-
-        function clearAllSlots() {
-            const slots = ['left-slot-1', 'left-slot-2', 'right-slot-1', 'right-slot-2'];
-            slots.forEach(slotId => {
-                const slot = document.getElementById(slotId);
-                slot.classList.remove('filled');
-                slot.innerHTML = '<div class="slot-placeholder">Пустой слот</div>';
-            });
-        }
-
-        function fillTeamSlots(members) {
-            if (members.length === 0) return;
-
-            const slots = ['left-slot-1', 'left-slot-2', 'right-slot-1', 'right-slot-2'];
-            
-            members.forEach((member, index) => {
-                if (index < slots.length) {
-                    const slot = document.getElementById(slots[index]);
-                    slot.classList.add('filled');
-                    slot.innerHTML = `<div class="player-name">${member.name}</div>`;
-                }
-            });
         }
 
         function displayMembersList(members) {
@@ -785,7 +614,7 @@
             }
 
             // Simulate game completion
-            showMessage('Игра завершена! Рейтинги обновлены.', 'success');
+            showMessage('Игра завершена!', 'success');
             
             // Go back to room
             showRoomDetails(currentRoom.id);
