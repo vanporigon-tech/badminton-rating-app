@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏸 Badminton Rating Mini App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #233e39 0%, #1a2f2a 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #4ade80;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            margin: 40px 0;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 250px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 222, 128, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+        }
+
+        .btn-back {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .section {
+            display: block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Room details */
+        .room-header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #room-name-display {
+            color: #4ade80;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .room-stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Teams container */
+        .teams-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 30px 0;
+            gap: 20px;
+            min-height: 300px;
+        }
+
+        .team {
+            flex: 1;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid transparent;
+        }
+
+        .team-left {
+            border-color: #60a5fa;
+        }
+
+        .team-right {
+            border-color: #f87171;
+        }
+
+        .team h4 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .team-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .player-slot {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .player-slot.filled {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+        }
+
+        .player-slot.filled-left {
+            border-color: #60a5fa;
+            background: rgba(96, 165, 250, 0.1);
+        }
+
+        .player-slot.filled-right {
+            border-color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+        }
+
+        .slot-placeholder {
+            color: rgba(255, 255, 255, 0.6);
+            font-style: italic;
+        }
+
+        .player-info {
+            text-align: center;
+            color: white;
+        }
+
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .player-rating {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        /* Center net */
+        .center-net {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+            position: relative;
+        }
+
+        .net-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        .vs-text {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #fbbf24;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin: 10px 0;
+        }
+
+        .net-line {
+            width: 4px;
+            height: 100px;
+            background: linear-gradient(to bottom, #fbbf24, #f59e0b);
+            border-radius: 2px;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Members section */
+        .members-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .members-section h4 {
+            color: #fbbf24;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .members-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #members-ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .member-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4ade80;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .member-item:first-child {
+            border-left-color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .member-item.leader {
+            border-left-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        /* Room controls */
+        .room-controls {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        #leader-controls, #join-controls {
+            margin: 20px 0;
+        }
+
+        .btn-large {
+            font-size: 1.2em;
+            padding: 15px 30px;
+            margin: 10px;
+        }
+
+        .game-rules {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        #start-game-btn:disabled {
+            background: #6b7280;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1em;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4ade80;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Messages */
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: rgba(74, 222, 128, 0.2);
+            border: 1px solid #4ade80;
+            color: #4ade80;
+        }
+
+        .message.error {
+            background: rgba(248, 113, 113, 0.2);
+            border: 1px solid #f87171;
+            color: #f87171;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .teams-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .center-net {
+                min-width: auto;
+                order: -1;
+            }
+            
+            .net-line {
+                display: none;
+            }
+            
+            .room-stats {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        /* Demo mode indicator */
+        .demo-mode {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(251, 191, 36, 0.9);
+            color: #1f2937;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-mode">🎯 Демо режим</div>
+    
+    <div class="container">
+        <!-- Main Menu -->
+        <div id="main-menu" class="section">
+            <div class="header">
+                <h1>🏸 Badminton Rating</h1>
+                <p>Система рейтинга по Glicko-2</p>
+            </div>
+            
+            <div class="main-menu">
+                <button id="search-game" class="btn btn-primary">
+                    🔍 Искать игру
+                </button>
+                <button id="create-game" class="btn btn-secondary">
+                    ➕ Создать игру
+                </button>
+            </div>
+        </div>
+
+        <!-- Search Rooms -->
+        <div id="search-rooms" class="section hidden">
+            <h2>🔍 Поиск доступных игр</h2>
+            <div id="rooms-list">
+                <p>Загрузка комнат...</p>
+            </div>
+            <button id="back-to-main" class="btn btn-back">← Назад</button>
+        </div>
+
+        <!-- Create Room -->
+        <div id="create-room" class="section hidden">
+            <h2>Создать новую игру</h2>
+            <form id="room-form">
+                <div class="form-group">
+                    <label for="room-name">Название комнаты:</label>
+                    <input type="text" id="room-name" placeholder="Введите название комнаты" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </form>
+            <button id="back-to-main-2" class="btn btn-back">← Назад</button>
+        </div>
+
+        <!-- Room Details -->
+        <div id="room-details" class="section hidden">
+            <h2>🏸 Детали комнаты</h2>
+            
+            <!-- Информация о комнате -->
+            <div class="room-header">
+                <h3 id="room-name-display">Название комнаты</h3>
+                <div class="room-stats">
+                    <span class="stat-item">👥 <span id="member-count">0</span>/4</span>
+                    <span class="stat-item">👑 Лидер: <span id="room-creator">ID</span></span>
+                </div>
+            </div>
+            
+            <!-- Разделение на команды -->
+            <div class="teams-container">
+                <!-- Левая команда -->
+                <div class="team team-left">
+                    <h4>🟦 Команда 1</h4>
+                    <div class="team-slots">
+                        <div class="player-slot" id="left-slot-1">
+                            <div class="slot-placeholder">Пустой слот</div>
+                        </div>
+                        <div class="player-slot" id="left-slot-2">
+                            <div class="slot-placeholder">Пустой слот</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Центральная сетка -->
+                <div class="center-net">
+                    <div class="net-icon">🏸</div>
+                    <div class="vs-text">VS</div>
+                    <div class="net-line"></div>
+                </div>
+                
+                <!-- Правая команда -->
+                <div class="team team-right">
+                    <h4>🟥 Команда 2</h4>
+                    <div class="team-slots">
+                        <div class="player-slot" id="right-slot-1">
+                            <div class="slot-placeholder">Пустой слот</div>
+                        </div>
+                        <div class="player-slot" id="right-slot-2">
+                            <div class="slot-placeholder">Пустой слот</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Список всех участников -->
+            <div class="members-section">
+                <h4>📋 Все участники комнаты:</h4>
+                <div class="members-list">
+                    <ul id="members-ul"></ul>
+                </div>
+            </div>
+            
+            <!-- Кнопки управления -->
+            <div class="room-controls">
+                <!-- Кнопка "Начать игру" только для лидера -->
+                <div id="leader-controls" class="hidden">
+                    <button id="start-game-btn" class="btn btn-primary btn-large">
+                        🚀 Начать игру
+                    </button>
+                    <p class="game-rules">Игра начнется когда все слоты будут заполнены</p>
+                </div>
+                
+                <!-- Кнопка "Присоединиться" для обычных пользователей -->
+                <div id="join-controls">
+                    <button id="join-room-btn" class="btn btn-secondary">
+                        ➕ Присоединиться к комнате
+                    </button>
+                </div>
+            </div>
+            
+            <button id="back-to-main-3" class="btn btn-back">← Назад</button>
+        </div>
+
+        <!-- Game Score -->
+        <div id="game-score" class="section hidden">
+            <h2>🎮 Ввод результата игры</h2>
+            <div id="game-info">
+                <p>Команда 1: <span id="team1-score">0</span></p>
+                <p>Команда 2: <span id="team2-score">0</span></p>
+            </div>
+            <form id="score-form">
+                <div class="form-group">
+                    <label for="team1-final">Счет команды 1:</label>
+                    <input type="number" id="team1-final" min="0" max="30" required>
+                </div>
+                <div class="form-group">
+                    <label for="team2-final">Счет команды 2:</label>
+                    <input type="number" id="team2-final" min="0" max="30" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Завершить игру</button>
+            </form>
+            <button id="back-to-room" class="btn btn-back">← Назад к комнате</button>
+        </div>
+    </div>
+
+    <script>
+        // Demo data for demonstration
+        const demoData = {
+            currentUser: {
+                id: 123,
+                first_name: 'Demo',
+                last_name: 'User'
+            },
+            demoRooms: [
+                {
+                    id: 1,
+                    name: '🏸 Вечерняя игра',
+                    creator_id: 123,
+                    member_count: 2
+                },
+                {
+                    id: 2,
+                    name: '🎯 Тренировка',
+                    creator_id: 456,
+                    member_count: 3
+                }
+            ],
+            demoMembers: [
+                {
+                    player_id: 123,
+                    is_leader: true,
+                    name: 'Demo User',
+                    rating: 'B+'
+                },
+                {
+                    player_id: 456,
+                    is_leader: false,
+                    name: 'John Doe',
+                    rating: 'A-'
+                }
+            ]
+        };
+
+        let currentRoom = null;
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            showMainMenu();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Main menu buttons
+            document.getElementById('search-game').addEventListener('click', () => {
+                showSection('search-rooms');
+                displayDemoRooms();
+            });
+
+            document.getElementById('create-game').addEventListener('click', () => {
+                showSection('create-room');
+            });
+
+            // Back buttons
+            document.getElementById('back-to-main').addEventListener('click', () => showMainMenu());
+            document.getElementById('back-to-main-2').addEventListener('click', () => showMainMenu());
+            document.getElementById('back-to-main-3').addEventListener('click', () => showMainMenu());
+
+            // Forms
+            document.getElementById('room-form').addEventListener('submit', handleCreateRoom);
+            document.getElementById('join-room-btn').addEventListener('click', handleJoinRoom);
+            document.getElementById('start-game-btn').addEventListener('click', handleStartGame);
+        }
+
+        // Show main menu
+        function showMainMenu() {
+            if (currentRoom) {
+                if (confirm('⚠️ Вы уверены, что хотите выйти из этой комнаты?')) {
+                    currentRoom = null;
+                } else {
+                    return;
+                }
+            }
+            showSection('main-menu');
+        }
+
+        // Show/hide sections
+        function showSection(sectionId) {
+            const sections = ['main-menu', 'search-rooms', 'create-room', 'room-details', 'game-score'];
+            sections.forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        // Display demo rooms
+        function displayDemoRooms() {
+            const roomsList = document.getElementById('rooms-list');
+            roomsList.innerHTML = '';
+            
+            demoData.demoRooms.forEach(room => {
+                const roomDiv = document.createElement('div');
+                roomDiv.className = 'room-item';
+                roomDiv.style.cssText = `
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 20px;
+                    margin: 15px 0;
+                    border-radius: 10px;
+                    border-left: 4px solid #4ade80;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                `;
+                
+                roomDiv.innerHTML = `
+                    <h3>${room.name}</h3>
+                    <p>👥 Участники: ${room.member_count}/4</p>
+                    <p>👑 Создатель: ID ${room.creator_id}</p>
+                `;
+                
+                roomDiv.addEventListener('click', () => {
+                    showRoomDetails(room);
+                });
+                
+                roomsList.appendChild(roomDiv);
+            });
+        }
+
+        // Handle create room
+        function handleCreateRoom(event) {
+            event.preventDefault();
+            
+            const roomName = document.getElementById('room-name').value;
+            
+            if (!roomName.trim()) {
+                showMessage('Введите название комнаты', 'error');
+                return;
+            }
+            
+            // Create demo room
+            const newRoom = {
+                id: Date.now(),
+                name: roomName,
+                creator_id: demoData.currentUser.id,
+                member_count: 1
+            };
+            
+            showMessage('Комната создана!', 'success');
+            setTimeout(() => {
+                showRoomDetails(newRoom);
+            }, 1500);
+        }
+
+        // Show room details
+        function showRoomDetails(room) {
+            currentRoom = room;
+            
+            document.getElementById('room-name-display').textContent = room.name;
+            document.getElementById('room-creator').textContent = `ID: ${room.creator_id}`;
+            document.getElementById('member-count').textContent = room.member_count;
+            
+            // Clear all slots
+            clearAllSlots();
+            
+            // Fill team slots with demo data
+            fillTeamSlots(demoData.demoMembers);
+            
+            // Display members list
+            displayMembersList(demoData.demoMembers);
+            
+            // Show/hide buttons based on role
+            const isLeader = room.creator_id === demoData.currentUser.id;
+            
+            if (isLeader) {
+                document.getElementById('leader-controls').classList.remove('hidden');
+                document.getElementById('join-controls').classList.add('hidden');
+                
+                const startGameBtn = document.getElementById('start-game-btn');
+                if (room.member_count < 2) {
+                    startGameBtn.disabled = true;
+                    startGameBtn.textContent = '⏳ Недостаточно игроков (минимум 2)';
+                } else {
+                    startGameBtn.disabled = false;
+                    startGameBtn.textContent = '🚀 Начать игру';
+                }
+            } else {
+                document.getElementById('leader-controls').classList.add('hidden');
+                document.getElementById('join-controls').classList.remove('hidden');
+            }
+            
+            showSection('room-details');
+        }
+
+        // Clear all team slots
+        function clearAllSlots() {
+            const slots = ['left-slot-1', 'left-slot-2', 'right-slot-1', 'right-slot-2'];
+            slots.forEach(slotId => {
+                const slot = document.getElementById(slotId);
+                slot.innerHTML = '<div class="slot-placeholder">Пустой слот</div>';
+                slot.className = 'player-slot';
+            });
+        }
+
+        // Fill team slots with players
+        function fillTeamSlots(members) {
+            if (members.length === 0) return;
+            
+            const sortedMembers = [...members].sort((a, b) => {
+                if (a.is_leader && !b.is_leader) return -1;
+                if (!a.is_leader && b.is_leader) return 1;
+                return a.name.localeCompare(b.name);
+            });
+            
+            if (sortedMembers.length === 1) {
+                fillSlot('left-slot-1', sortedMembers[0], 'left');
+            } else if (sortedMembers.length === 2) {
+                fillSlot('left-slot-1', sortedMembers[0], 'left');
+                fillSlot('right-slot-1', sortedMembers[1], 'right');
+            } else if (sortedMembers.length === 3) {
+                fillSlot('left-slot-1', sortedMembers[0], 'left');
+                fillSlot('left-slot-2', sortedMembers[1], 'left');
+                fillSlot('right-slot-1', sortedMembers[2], 'right');
+            } else if (sortedMembers.length === 4) {
+                fillSlot('left-slot-1', sortedMembers[0], 'left');
+                fillSlot('left-slot-2', sortedMembers[1], 'left');
+                fillSlot('right-slot-1', sortedMembers[2], 'right');
+                fillSlot('right-slot-2', sortedMembers[3], 'right');
+            }
+        }
+
+        // Fill individual slot
+        function fillSlot(slotId, player, teamSide) {
+            const slot = document.getElementById(slotId);
+            const teamClass = teamSide === 'left' ? 'filled-left' : 'filled-right';
+            
+            slot.innerHTML = `
+                <div class="player-info">
+                    <div class="player-name">${player.name}</div>
+                    <div class="player-rating">Рейтинг: ${player.rating}</div>
+                </div>
+            `;
+            
+            slot.className = `player-slot filled ${teamClass}`;
+        }
+
+        // Display members list
+        function displayMembersList(members) {
+            const membersUl = document.getElementById('members-ul');
+            membersUl.innerHTML = '';
+            
+            members.forEach(member => {
+                const li = document.createElement('li');
+                li.className = member.is_leader ? 'member-item leader' : 'member-item';
+                
+                const leaderIcon = member.is_leader ? '👑 ' : '👤 ';
+                const memberText = `${leaderIcon}${member.name}`;
+                const ratingText = `Рейтинг: ${member.rating}`;
+                
+                li.innerHTML = `
+                    <span>${memberText}</span>
+                    <span>${ratingText}</span>
+                `;
+                
+                membersUl.appendChild(li);
+            });
+        }
+
+        // Handle join room
+        function handleJoinRoom() {
+            if (!currentRoom) {
+                showMessage('Ошибка: комната не выбрана', 'error');
+                return;
+            }
+            
+            showMessage('✅ Вы присоединились к комнате!', 'success');
+            
+            // Update member count
+            currentRoom.member_count++;
+            document.getElementById('member-count').textContent = currentRoom.member_count;
+            
+            // Hide join button
+            document.getElementById('join-controls').classList.add('hidden');
+        }
+
+        // Handle start game
+        function handleStartGame() {
+            if (!currentRoom) {
+                showMessage('Ошибка: комната не выбрана', 'error');
+                return;
+            }
+            
+            showMessage('🎮 Игра началась!', 'success');
+            
+            setTimeout(() => {
+                showSection('game-score');
+            }, 1500);
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            
+            document.querySelector('.container').insertBefore(messageDiv, document.querySelector('.container').firstChild);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
