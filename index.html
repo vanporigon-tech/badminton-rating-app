@@ -379,8 +379,8 @@
                     // Fallback для демо режима
                     return {
                         id: 123,
-                        first_name: 'Demo',
-                        last_name: 'User'
+                        first_name: 'Демо',
+                        last_name: 'Пользователь'
                     };
                 }
             })(),
@@ -422,10 +422,14 @@
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.ready();
                 console.log('Telegram Mini App инициализирован');
+                console.log('Данные пользователя из Telegram:', window.Telegram.WebApp.initDataUnsafe.user);
+            } else {
+                console.log('Telegram Mini App не найден, используем демо-данные');
             }
             
             // Принудительно обновляем кэш
             console.log('Версия Mini App: 2.4 - ' + new Date().toISOString());
+            console.log('Текущие данные пользователя:', demoData.currentUser);
             
             setupEventListeners();
             showMainMenu();
@@ -507,12 +511,16 @@
 
         function handleCreateRoom() {
             // Создаем комнату с названием, основанным на имени создателя
+            console.log('Данные пользователя:', demoData.currentUser);
+            
             let roomName;
             if (demoData.currentUser.last_name) {
                 roomName = `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`;
             } else {
                 roomName = demoData.currentUser.first_name;
             }
+            
+            console.log('Название комнаты:', roomName);
             
             const newRoom = {
                 id: Date.now(),
