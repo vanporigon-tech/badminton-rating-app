@@ -131,7 +131,7 @@ def process_update(update):
         if "message" in update:
             message = update["message"]
             chat_id = message["chat"]["id"]
-            first_name = message.get("from", {}).get("first_name", "Пользователь")
+            first_name = message.get("from", {}).get("first_name", "Неизвестный")
             
             if "text" in message:
                 text = message["text"]

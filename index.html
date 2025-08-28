@@ -365,50 +365,50 @@
     <script>
         // Версия 2.3 - Го Бадмин
         // Получаем данные пользователя из Telegram Mini App
-        const demoData = {
+        const fallbackData = {
             currentUser: (() => {
                 // Пытаемся получить данные пользователя из Telegram Mini App
                 if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                     const user = window.Telegram.WebApp.initDataUnsafe.user;
                     return {
                         id: user.id,
-                        first_name: user.first_name || 'Пользователь',
+                        first_name: user.first_name || 'Гость',
                         last_name: user.last_name || ''
                     };
                 } else {
-                    // Fallback для демо режима
+                    // Fallback для работы вне Telegram
                     return {
-                        id: 123,
-                        first_name: 'Демо',
-                        last_name: 'Пользователь'
+                        id: Date.now(),
+                        first_name: 'Гость',
+                        last_name: 'Неизвестный'
                     };
                 }
             })(),
-            demoRooms: [
+            availableRooms: [
                 {
                     id: 1,
-                    name: 'Демо комната 1',
+                    name: 'Пример комната 1',
                     creator_id: 123,
                     member_count: 2
                 },
                 {
                     id: 2,
-                    name: 'Демо комната 2',
+                    name: 'Пример комната 2',
                     creator_id: 456,
                     member_count: 3
                 }
             ],
-            demoMembers: [
+            roomMembers: [
                 {
                     player_id: 123,
                     is_leader: true,
-                    name: 'Демо игрок 1',
+                    name: 'Пример игрок 1',
                     rating: 'B+'
                 },
                 {
                     player_id: 456,
                     is_leader: false,
-                    name: 'Демо игрок 2',
+                    name: 'Пример игрок 2',
                     rating: 'A-'
                 }
             ]
@@ -424,12 +424,12 @@
                 console.log('Telegram Mini App инициализирован');
                 console.log('Данные пользователя из Telegram:', window.Telegram.WebApp.initDataUnsafe.user);
             } else {
-                console.log('Telegram Mini App не найден, используем демо-данные');
+                console.log('Telegram Mini App не найден, используем fallback данные');
             }
             
             // Принудительно обновляем кэш
             console.log('Версия Mini App: 2.4 - ' + new Date().toISOString());
-            console.log('Текущие данные пользователя:', demoData.currentUser);
+            console.log('Текущие данные пользователя:', fallbackData.currentUser);
             
             setupEventListeners();
             showMainMenu();
@@ -491,14 +491,14 @@
         function loadRooms() {
             const roomsList = document.getElementById('rooms-list');
             
-            // Simulate API call with demo data
+            // Симуляция API вне Telegram
             setTimeout(() => {
-                if (demoData.demoRooms.length === 0) {
+                if (fallbackData.availableRooms.length === 0) {
                     roomsList.innerHTML = '<p>Нет доступных комнат</p>';
                     return;
                 }
 
-                const roomsHtml = demoData.demoRooms.map(room => `
+                const roomsHtml = fallbackData.availableRooms.map(room => `
                     <div class="room-item" onclick="showRoomDetails(${room.id})">
                         <div class="room-name">${room.name}</div>
                         <div class="room-info">Участников: ${room.member_count}/4</div>
@@ -511,13 +511,13 @@
 
         function handleCreateRoom() {
             // Создаем комнату с названием, основанным на имени создателя
-            console.log('Данные пользователя:', demoData.currentUser);
+            console.log('Данные пользователя:', fallbackData.currentUser);
             
             let roomName;
-            if (demoData.currentUser.last_name) {
-                roomName = `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`;
+            if (fallbackData.currentUser.last_name) {
+                roomName = `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}`;
             } else {
-                roomName = demoData.currentUser.first_name;
+                roomName = fallbackData.currentUser.first_name;
             }
             
             console.log('Название комнаты:', roomName);
@@ -525,7 +525,7 @@
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
-                creator_id: demoData.currentUser.id,
+                creator_id: fallbackData.currentUser.id,
                 member_count: 1
             };
 
@@ -536,13 +536,13 @@
 
         async function showRoomDetails(roomId) {
             try {
-                // Simulate API calls with demo data
-                const room = demoData.demoRooms.find(r => r.id === roomId) || {
+                // Симуляция API вне Telegram
+                const room = fallbackData.availableRooms.find(r => r.id === roomId) || {
                     id: roomId,
-                    name: demoData.currentUser.last_name ? 
-                        `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}` : 
-                        demoData.currentUser.first_name,
-                    creator_id: demoData.currentUser.id,
+                    name: fallbackData.currentUser.last_name ? 
+                        `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}` : 
+                        fallbackData.currentUser.first_name,
+                    creator_id: fallbackData.currentUser.id,
                     member_count: 1
                 };
 
@@ -550,11 +550,11 @@
                     room_id: roomId,
                     members: [
                         {
-                            player_id: demoData.currentUser.id,
+                            player_id: fallbackData.currentUser.id,
                             is_leader: true,
-                            name: demoData.currentUser.last_name ? 
-                                `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}` : 
-                                demoData.currentUser.first_name,
+                            name: fallbackData.currentUser.last_name ? 
+                                `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}` : 
+                                fallbackData.currentUser.first_name,
                             rating: 'B+'
                         }
                     ],
@@ -572,8 +572,8 @@
                 displayMembersList(membersData.members);
 
                 // Show/hide buttons based on user role
-                const isLeader = room.creator_id === demoData.currentUser.id;
-                const isMember = membersData.members.some(m => m.player_id === demoData.currentUser.id);
+                const isLeader = room.creator_id === fallbackData.currentUser.id;
+                const isMember = membersData.members.some(m => m.player_id === fallbackData.currentUser.id);
 
                 if (isLeader) {
                     document.getElementById('leader-controls').classList.remove('hidden');
@@ -630,7 +630,7 @@
             // Simulate joining room
             showMessage('Вы присоединились к комнате!', 'success');
             
-            // Update demo data
+            // Обновление данных
             const newMember = {
                 player_id: 999,
                 is_leader: false,
@@ -638,7 +638,7 @@
                 rating: 'C'
             };
             
-            demoData.demoMembers.push(newMember);
+            fallbackData.roomMembers.push(newMember);
             
             // Refresh room display
             showRoomDetails(currentRoom.id);

@@ -483,18 +483,18 @@
     </div>
 
     <script>
-        // Demo data for demonstration
-        const demoData = {
+        // Данные для тестирования (вне Telegram)
+        const fallbackData = {
             currentUser: {
-                id: 123,
-                first_name: 'Demo',
+                id: Date.now(),
+                first_name: 'Пример',
                 last_name: 'User'
             },
-            demoRooms: [
+            availableRooms: [
                 {
                     id: 1,
                     name: '🏸 Вечерняя игра',
-                    creator_id: 123,
+                    creator_id: 1,
                     member_count: 2
                 },
                 {
@@ -504,11 +504,11 @@
                     member_count: 3
                 }
             ],
-            demoMembers: [
+            roomMembers: [
                 {
-                    player_id: 123,
+                    player_id: 1,
                     is_leader: true,
-                    name: 'Demo User',
+                    name: 'Пример User',
                     rating: 'B+'
                 },
                 {
@@ -600,14 +600,14 @@
         function loadRooms() {
             const roomsList = document.getElementById('rooms-list');
             
-            // Simulate API call with demo data
+            // Симуляция API вне Telegram
             setTimeout(() => {
-                if (demoData.demoRooms.length === 0) {
+                if (fallbackData.availableRooms.length === 0) {
                     roomsList.innerHTML = '<p>Нет доступных комнат</p>';
                     return;
                 }
 
-                const roomsHtml = demoData.demoRooms.map(room => `
+                const roomsHtml = fallbackData.availableRooms.map(room => `
                     <div class="room-item" onclick="showRoomDetails(${room.id})">
                         <div class="room-name">${room.name}</div>
                         <div class="room-info">Участников: ${room.member_count}/4</div>
@@ -630,7 +630,7 @@
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
-                creator_id: demoData.currentUser.id,
+                creator_id: fallbackData.currentUser.id,
                 member_count: 1
             };
 
@@ -641,11 +641,11 @@
 
         async function showRoomDetails(roomId) {
             try {
-                // Simulate API calls with demo data
-                const room = demoData.demoRooms.find(r => r.id === roomId) || {
+                // Симуляция API вне Telegram
+                const room = fallbackData.availableRooms.find(r => r.id === roomId) || {
                     id: roomId,
                     name: 'Новая комната',
-                    creator_id: demoData.currentUser.id,
+                    creator_id: fallbackData.currentUser.id,
                     member_count: 1
                 };
 
@@ -653,9 +653,9 @@
                     room_id: roomId,
                     members: [
                         {
-                            player_id: demoData.currentUser.id,
+                            player_id: fallbackData.currentUser.id,
                             is_leader: true,
-                            name: `${demoData.currentUser.first_name} ${demoData.currentUser.last_name}`,
+                            name: `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}`,
                             rating: 'B+'
                         }
                     ],
@@ -680,8 +680,8 @@
                 displayMembersList(membersData.members);
 
                 // Show/hide buttons based on user role
-                const isLeader = room.creator_id === demoData.currentUser.id;
-                const isMember = membersData.members.some(m => m.player_id === demoData.currentUser.id);
+                const isLeader = room.creator_id === fallbackData.currentUser.id;
+                const isMember = membersData.members.some(m => m.player_id === fallbackData.currentUser.id);
 
                 if (isLeader) {
                     document.getElementById('leader-controls').classList.remove('hidden');
@@ -761,7 +761,7 @@
             // Simulate joining room
             showMessage('Вы присоединились к комнате!', 'success');
             
-            // Update demo data
+            // Обновление данных
             const newMember = {
                 player_id: 999,
                 is_leader: false,
@@ -769,7 +769,7 @@
                 rating: 'C'
             };
             
-            demoData.demoMembers.push(newMember);
+            fallbackData.roomMembers.push(newMember);
             
             // Refresh room display
             showRoomDetails(currentRoom.id);
