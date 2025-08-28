@@ -363,70 +363,78 @@
     </div>
 
     <script>
-        // Версия 2.4 - Го Бадмин с подключением к API
-        const API_BASE_URL = window.location.hostname === 'localhost' ? 
-            'http://localhost:8000' : 
-            'https://api.your-domain.com'; // Здесь нужно будет указать реальный API домен
+        // Версия 3.0 - ПРИНУДИТЕЛЬНАЯ РАБОТА С БАЗОЙ ДАННЫХ
+        const API_BASE_URL = 'http://localhost:8000';
         
         // Получаем данные пользователя из Telegram Mini App
         let currentUser = null;
         
         async function initializeUser() {
-            // Принудительно инициализируем Telegram WebApp
-            if (window.Telegram && window.Telegram.WebApp) {
-                try {
-                    window.Telegram.WebApp.ready();
-                    window.Telegram.WebApp.expand();
+            let telegramId = null;
+            
+            // Получаем Telegram ID
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                telegramId = window.Telegram.WebApp.initDataUnsafe.user.id;
+                console.log('🎯 Telegram ID найден:', telegramId);
+            } else {
+                // Если нет Telegram - используем тестовый ID
+                telegramId = 972717950; // ID админа для тестирования
+                console.log('🧪 Используем тестовый Telegram ID:', telegramId);
+            }
+            
+            // ПРИНУДИТЕЛЬНО получаем данные из базы
+            try {
+                console.log('🔗 Запрашиваем пользователя из API...');
+                const response = await fetch(`${API_BASE_URL}/players/${telegramId}`);
+                
+                if (response.ok) {
+                    const dbUser = await response.json();
+                    currentUser = {
+                        id: dbUser.id,
+                        telegram_id: dbUser.telegram_id,
+                        first_name: dbUser.first_name,
+                        last_name: dbUser.last_name
+                    };
+                    console.log('✅ УСПЕХ! Пользователь из базы данных:', currentUser);
+                    return;
+                } else {
+                    console.log('❌ Пользователь не найден в базе, создаем...');
                     
-                    // Ждем немного для полной инициализации
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    // Создаем пользователя с дефолтными данными
+                    const createResponse = await fetch(`${API_BASE_URL}/players/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            telegram_id: telegramId,
+                            first_name: 'Иван',
+                            last_name: 'Золотарев'
+                        })
+                    });
                     
-                    console.log('Telegram WebApp инициализирован');
-                    console.log('initData:', window.Telegram.WebApp.initData);
-                    console.log('initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
-                    
-                    if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                        const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                        console.log('Telegram user:', telegramUser);
-                        
+                    if (createResponse.ok) {
+                        const newUser = await createResponse.json();
                         currentUser = {
-                            id: telegramUser.id,
-                            telegram_id: telegramUser.id,
-                            first_name: telegramUser.first_name || 'Игрок',
-                            last_name: telegramUser.last_name || ''
+                            id: newUser.id,
+                            telegram_id: newUser.telegram_id,
+                            first_name: newUser.first_name,
+                            last_name: newUser.last_name
                         };
-                        
-                        console.log('✅ Пользователь из Telegram:', currentUser);
+                        console.log('✅ СОЗДАН новый пользователь в базе:', currentUser);
                         return;
                     }
-                } catch (error) {
-                    console.error('Ошибка инициализации Telegram WebApp:', error);
                 }
+            } catch (error) {
+                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА API:', error);
             }
             
-            // Fallback: проверяем URL параметры (для тестирования)
-            const urlParams = new URLSearchParams(window.location.search);
-            const testUser = urlParams.get('test_user');
-            
-            if (testUser) {
-                const [first_name, last_name] = testUser.split('_');
-                currentUser = {
-                    id: Date.now(),
-                    telegram_id: Date.now(),
-                    first_name: first_name || 'Иван',
-                    last_name: last_name || 'Золотарев'
-                };
-                console.log('🧪 Тестовый пользователь из URL:', currentUser);
-            } else {
-                // Последний fallback
-                currentUser = {
-                    id: Date.now(),
-                    telegram_id: Date.now(),
-                    first_name: 'Демо',
-                    last_name: 'Режим'
-                };
-                console.log('⚠️ Fallback пользователь:', currentUser);
-            }
+            // Если все упало - показываем ошибку
+            currentUser = {
+                id: Date.now(),
+                telegram_id: telegramId,
+                first_name: 'ОШИБКА',
+                last_name: 'API'
+            };
+            console.error('💀 КРИТИЧЕСКАЯ ОШИБКА: Не удалось получить пользователя из базы!');
         }
 
         const fallbackData = {
@@ -469,8 +477,8 @@
             // Инициализируем пользователя ПЕРВЫМ ДЕЛОМ
             await initializeUser();
             
-            // Показываем отладочную информацию
-            console.log('🔍 DEBUG: Версия 2.5 - ' + new Date().toISOString());
+            // Показываем отладочную информацию  
+            console.log('🔥 ПРИНУДИТЕЛЬНАЯ ИНТЕГРАЦИЯ С БД: Версия 3.0 - ' + new Date().toISOString());
             console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
             console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
             console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
@@ -564,81 +572,139 @@
             }, 500);
         }
 
-        function handleCreateRoom() {
+        async function handleCreateRoom() {
             if (!currentUser) {
-                showMessage('Ошибка: пользователь не инициализирован', 'error');
+                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
             }
             
-            // Создаем комнату с названием, основанным на имени создателя
-            console.log('Данные пользователя:', currentUser);
+            console.log('🏗️ Создаем комнату для пользователя:', currentUser);
             
-            let roomName;
-            if (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') {
-                roomName = `${currentUser.first_name} ${currentUser.last_name}`;
-            } else {
-                roomName = currentUser.first_name;
+            // НАЗВАНИЕ КОМНАТЫ = ИМЯ + ФАМИЛИЯ
+            const roomName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+            console.log('📝 НАЗВАНИЕ КОМНАТЫ:', roomName);
+            
+            try {
+                // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: roomName,
+                        creator_id: currentUser.id
+                    })
+                });
+                
+                if (response.ok) {
+                    const newRoom = await response.json();
+                    console.log('✅ КОМНАТА СОЗДАНА В БАЗЕ:', newRoom);
+                    
+                    currentRoom = newRoom;
+                    await showRoomDetails(newRoom.id);
+                    showMessage(`Комната "${roomName}" создана!`, 'success');
+                } else {
+                    console.error('❌ Ошибка создания комнаты через API');
+                    // Fallback - создаем локально
+                    const localRoom = {
+                        id: Date.now(),
+                        name: roomName,
+                        creator_id: currentUser.id,
+                        member_count: 1
+                    };
+                    currentRoom = localRoom;
+                    await showRoomDetails(localRoom.id);
+                    showMessage(`Комната "${roomName}" создана локально!`, 'success');
+                }
+            } catch (error) {
+                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА создания комнаты:', error);
+                showMessage('Ошибка создания комнаты!', 'error');
             }
-            
-            console.log('Название комнаты:', roomName);
-            
-            const newRoom = {
-                id: Date.now(),
-                name: roomName,
-                creator_id: currentUser.id,
-                member_count: 1
-            };
-
-            currentRoom = newRoom;
-            showRoomDetails(newRoom.id);
-            showMessage(`Комната "${roomName}" создана успешно!`, 'success');
         }
 
         async function showRoomDetails(roomId) {
             try {
                 if (!currentUser) {
-                    showMessage('Ошибка: пользователь не инициализирован', 'error');
+                    showMessage('КРИТИЧЕСКАЯ ОШИБКА: пользователь не инициализирован!', 'error');
                     return;
                 }
 
-                // Симуляция API вне Telegram (пока что)
-                const room = fallbackData.availableRooms.find(r => r.id === roomId) || {
-                    id: roomId,
-                    name: (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') ? 
-                        `${currentUser.first_name} ${currentUser.last_name}` : 
-                        currentUser.first_name,
-                    creator_id: currentUser.id,
-                    member_count: 1
-                };
+                console.log('🏠 Загружаем детали комнаты:', roomId);
+                
+                let room, membersData;
+                
+                try {
+                    // ПЫТАЕМСЯ ПОЛУЧИТЬ КОМНАТУ ИЗ API
+                    const roomResponse = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
+                    
+                    if (roomResponse.ok) {
+                        const roomData = await roomResponse.json();
+                        console.log('✅ КОМНАТА ИЗ API:', roomData);
+                        
+                        room = {
+                            id: roomData.id,
+                            name: `${roomData.creator.first_name} ${roomData.creator.last_name}`,
+                            creator_id: roomData.creator.id,
+                            member_count: roomData.members.length
+                        };
+                        
+                        membersData = {
+                            room_id: roomId,
+                            members: roomData.members.map(member => ({
+                                player_id: member.player.id,
+                                is_leader: member.player.id === roomData.creator.id,
+                                name: `${member.player.first_name} ${member.player.last_name}`,
+                                rating: 'B+'
+                            })),
+                            total_count: roomData.members.length
+                        };
+                        
+                        console.log('✅ УЧАСТНИКИ ИЗ API:', membersData);
+                    } else {
+                        throw new Error('Комната не найдена в API');
+                    }
+                } catch (apiError) {
+                    console.log('⚠️ API недоступен, создаем локальную комнату:', apiError);
+                    
+                    // ЛОКАЛЬНАЯ КОМНАТА С РЕАЛЬНЫМИ ИМЕНАМИ ПОЛЬЗОВАТЕЛЯ
+                    const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+                    
+                    room = {
+                        id: roomId,
+                        name: userName,
+                        creator_id: currentUser.id,
+                        member_count: 1
+                    };
 
-                const membersData = {
-                    room_id: roomId,
-                    members: [
-                        {
-                            player_id: currentUser.id,
-                            is_leader: true,
-                            name: (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') ? 
-                                `${currentUser.first_name} ${currentUser.last_name}` : 
-                                currentUser.first_name,
-                            rating: 'B+'
-                        }
-                    ],
-                    total_count: 1
-                };
+                    membersData = {
+                        room_id: roomId,
+                        members: [
+                            {
+                                player_id: currentUser.id,
+                                is_leader: true,
+                                name: userName,
+                                rating: 'B+'
+                            }
+                        ],
+                        total_count: 1
+                    };
+                }
 
-                // Save current room
+                // СОХРАНЯЕМ ТЕКУЩУЮ КОМНАТУ
                 currentRoom = room;
 
-                // Update display - название комнаты = имя лидера
+                // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ - НАЗВАНИЕ = ИМЯ ЛИДЕРА  
                 document.getElementById('room-leader-name').textContent = room.name;
                 document.getElementById('member-count').textContent = membersData.total_count;
 
-                // Display members list
+                // ПОКАЗЫВАЕМ СПИСОК УЧАСТНИКОВ
                 displayMembersList(membersData.members);
 
-                // Show/hide buttons based on user role
+                // НАСТРОЙКИ КНОПОК
                 const isLeader = room.creator_id === currentUser.id;
                 const isMember = membersData.members.some(m => m.player_id === currentUser.id);
+                
+                console.log('🎯 ФИНАЛЬНАЯ КОМНАТА:', room);
+                console.log('🎯 ФИНАЛЬНЫЕ УЧАСТНИКИ:', membersData);
 
                 if (isLeader) {
                     document.getElementById('leader-controls').classList.remove('hidden');
