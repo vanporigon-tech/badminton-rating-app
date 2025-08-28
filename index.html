@@ -420,12 +420,30 @@
             // Если НЕ ПОЛУЧИЛИ TELEGRAM данные - используем тестовые для ВАШЕГО ID
             if (!telegramUser) {
                 console.log('🧪 Telegram недоступен, создаем тестового пользователя...');
-                telegramUser = {
-                    id: 972717950, // ВАШ реальный Telegram ID
-                    first_name: 'УКАЖИТЕ_ВАШЕ_ИМЯ', // Замените на ваше реальное имя из бота
-                    last_name: 'УКАЖИТЕ_ВАШУ_ФАМИЛИЮ', // Замените на вашу реальную фамилию из бота
-                    username: 'ivanzo'
-                };
+                // ПОЛУЧАЕМ РЕАЛЬНЫЕ ДАННЫЕ ИЗ БАЗЫ SQLite
+                try {
+                    const dbResponse = await fetch(`${API_BASE_URL}/players/972717950`);
+                    if (dbResponse.ok) {
+                        const dbUser = await dbResponse.json();
+                        telegramUser = {
+                            id: dbUser.telegram_id,
+                            first_name: dbUser.first_name,
+                            last_name: dbUser.last_name,
+                            username: 'ivanzo'
+                        };
+                        console.log('✅ ДАННЫЕ ИЗ БАЗЫ SQLite:', telegramUser);
+                    } else {
+                        throw new Error('Пользователь не найден в базе');
+                    }
+                } catch (error) {
+                    console.log('⚠️ Не удалось получить из базы, используем дефолтные');
+                    telegramUser = {
+                        id: 972717950,
+                        first_name: 'Иван',
+                        last_name: 'Золотарев',
+                        username: 'ivanzo'
+                    };
+                }
                 console.log('🧪 ТЕСТОВЫЙ пользователь создан:', telegramUser);
             }
             
@@ -577,7 +595,7 @@
             await initializeUser();
             
             // Показываем отладочную информацию  
-            console.log('🔥 АВТООБНОВЛЕНИЕ ИМЕН ИЗ TELEGRAM: Версия 5.1 - ' + new Date().toISOString());
+            console.log('🔥 СИНХРОНИЗАЦИЯ С БОТОМ SQLite: Версия 5.2 - ' + new Date().toISOString());
             console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
             console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
             console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
