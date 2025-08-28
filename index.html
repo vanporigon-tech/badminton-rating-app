@@ -377,76 +377,69 @@
                 telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
                 console.log('🎯 РЕАЛЬНЫЙ пользователь Telegram:', telegramUser);
             } else {
-                console.log('❌ Telegram данные недоступны, симулируем...');
-                // Для тестирования - каждый раз новый пользователь
-                const testNames = [
-                    {first_name: 'Алексей', last_name: 'Петров'},
-                    {first_name: 'Мария', last_name: 'Иванова'}, 
-                    {first_name: 'Дмитрий', last_name: 'Сидоров'},
-                    {first_name: 'Анна', last_name: 'Козлова'},
-                    {first_name: 'Игорь', last_name: 'Морозов'}
-                ];
-                const randomUser = testNames[Math.floor(Math.random() * testNames.length)];
-                telegramUser = {
-                    id: Date.now() + Math.floor(Math.random() * 1000),
-                    first_name: randomUser.first_name,
-                    last_name: randomUser.last_name
-                };
-                console.log('🧪 ТЕСТОВЫЙ пользователь:', telegramUser);
+                console.error('❌ TELEGRAM ДАННЫЕ НЕДОСТУПНЫ!');
+                // Возвращаем null чтобы показать что нет доступа к Telegram
+                telegramUser = null;
             }
             
-            // СОХРАНЯЕМ ИЛИ ПОЛУЧАЕМ ИЗ БАЗЫ
-            try {
-                console.log('🔗 Проверяем пользователя в API...');
-                const response = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`);
-                
-                if (response.ok) {
-                    const dbUser = await response.json();
-                    currentUser = {
-                        id: dbUser.id,
-                        telegram_id: dbUser.telegram_id,
-                        first_name: dbUser.first_name,
-                        last_name: dbUser.last_name
-                    };
-                    console.log('✅ НАЙДЕН в базе:', currentUser);
-                } else {
-                    console.log('💾 СОЗДАЕМ нового пользователя в базе...');
+            // РАБОТАЕМ ТОЛЬКО ЕСЛИ ЕСТЬ TELEGRAM ДАННЫЕ
+            if (telegramUser && telegramUser.id) {
+                try {
+                    console.log('🔗 Проверяем пользователя в API...');
+                    const response = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`);
                     
-                    // СОЗДАЕМ с РЕАЛЬНЫМИ данными из Telegram
-                    const createResponse = await fetch(`${API_BASE_URL}/players/`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            telegram_id: telegramUser.id,
-                            first_name: telegramUser.first_name || 'Пользователь',
-                            last_name: telegramUser.last_name || 'Без фамилии'
-                        })
-                    });
-                    
-                    if (createResponse.ok) {
-                        const newUser = await createResponse.json();
+                    if (response.ok) {
+                        const dbUser = await response.json();
                         currentUser = {
-                            id: newUser.id,
-                            telegram_id: newUser.telegram_id,
-                            first_name: newUser.first_name,
-                            last_name: newUser.last_name
+                            id: dbUser.id,
+                            telegram_id: dbUser.telegram_id,
+                            first_name: dbUser.first_name,
+                            last_name: dbUser.last_name
                         };
-                        console.log('✅ СОЗДАН в базе:', currentUser);
+                        console.log('✅ НАЙДЕН в базе:', currentUser);
                     } else {
-                        throw new Error('Не удалось создать пользователя');
+                        console.log('💾 СОЗДАЕМ нового пользователя в базе...');
+                        
+                        // СОЗДАЕМ с РЕАЛЬНЫМИ данными из Telegram
+                        const createResponse = await fetch(`${API_BASE_URL}/players/`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                telegram_id: telegramUser.id,
+                                first_name: telegramUser.first_name || 'Пользователь',
+                                last_name: telegramUser.last_name || ''
+                            })
+                        });
+                        
+                        if (createResponse.ok) {
+                            const newUser = await createResponse.json();
+                            currentUser = {
+                                id: newUser.id,
+                                telegram_id: newUser.telegram_id,
+                                first_name: newUser.first_name,
+                                last_name: newUser.last_name
+                            };
+                            console.log('✅ СОЗДАН в базе:', currentUser);
+                        } else {
+                            throw new Error('Не удалось создать пользователя');
+                        }
                     }
+                } catch (error) {
+                    console.error('❌ API недоступен:', error);
+                    
+                    // FALLBACK - используем Telegram данные напрямую
+                    currentUser = {
+                        id: telegramUser.id,
+                        telegram_id: telegramUser.id,
+                        first_name: telegramUser.first_name || 'Пользователь',
+                        last_name: telegramUser.last_name || ''
+                    };
+                    console.log('🔧 FALLBACK пользователь:', currentUser);
                 }
-            } catch (error) {
-                console.error('❌ API недоступен:', error);
-                
-                // FALLBACK - используем Telegram данные напрямую
-                currentUser = {
-                    id: telegramUser.id,
-                    telegram_id: telegramUser.id,
-                    first_name: telegramUser.first_name || 'Пользователь',
-                    last_name: telegramUser.last_name || 'Без фамилии'
-                };
-                console.log('🔧 FALLBACK пользователь:', currentUser);
+            } else {
+                console.error('💀 КРИТИЧЕСКАЯ ОШИБКА: НЕТ TELEGRAM ДАННЫХ!');
+                console.error('💀 Приложение должно запускаться ТОЛЬКО из Telegram бота!');
+                currentUser = null;
             }
         }
 
@@ -491,7 +484,7 @@
             await initializeUser();
             
             // Показываем отладочную информацию  
-            console.log('🔥 РЕАЛЬНЫЕ ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ: Версия 4.0 - ' + new Date().toISOString());
+            console.log('🔥 ТОЛЬКО РЕАЛЬНЫЕ TELEGRAM ДАННЫЕ: Версия 4.1 - ' + new Date().toISOString());
             console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
             console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
             console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
@@ -499,6 +492,16 @@
             // Проверяем что пользователь правильно инициализирован
             if (!currentUser || !currentUser.first_name) {
                 console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: пользователь не инициализирован!');
+                
+                // Показываем сообщение об ошибке пользователю
+                document.body.innerHTML = `
+                    <div style="padding: 20px; text-align: center; background: #ff4444; color: white;">
+                        <h2>❌ ОШИБКА</h2>
+                        <p>Приложение должно запускаться ТОЛЬКО из Telegram бота!</p>
+                        <p>Откройте бота и нажмите кнопку "Открыть Mini App"</p>
+                    </div>
+                `;
+                return;
             } else {
                 console.log('✅ Пользователь успешно инициализирован:', `${currentUser.first_name} ${currentUser.last_name}`);
             }
