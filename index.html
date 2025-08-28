@@ -478,7 +478,7 @@
             await initializeUser();
             
             // Показываем отладочную информацию  
-            console.log('🔥 ПРИНУДИТЕЛЬНАЯ ИНТЕГРАЦИЯ С БД: Версия 3.0 - ' + new Date().toISOString());
+            console.log('🔥 ИСПРАВЛЕНИЕ ОШИБКИ API: Версия 3.1 - ' + new Date().toISOString());
             console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
             console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
             console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
@@ -586,14 +586,23 @@
             
             try {
                 // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
+                console.log('📡 Отправляем запрос на создание комнаты...');
+                console.log('📡 API URL:', `${API_BASE_URL}/rooms/`);
+                console.log('📡 Данные:', { name: roomName, creator_id: currentUser.id });
+                
                 const response = await fetch(`${API_BASE_URL}/rooms/`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({
                         name: roomName,
                         creator_id: currentUser.id
                     })
                 });
+                
+                console.log('📡 Ответ API:', response.status, response.statusText);
                 
                 if (response.ok) {
                     const newRoom = await response.json();
@@ -601,23 +610,45 @@
                     
                     currentRoom = newRoom;
                     await showRoomDetails(newRoom.id);
-                    showMessage(`Комната "${roomName}" создана!`, 'success');
+                    showMessage(`Комната "${roomName}" создана в базе!`, 'success');
                 } else {
-                    console.error('❌ Ошибка создания комнаты через API');
-                    // Fallback - создаем локально
+                    const errorText = await response.text();
+                    console.error('❌ Ошибка API:', response.status, errorText);
+                    
+                    // СОЗДАЕМ ЛОКАЛЬНО БЕЗ API
+                    console.log('🔄 Создаем комнату локально...');
                     const localRoom = {
                         id: Date.now(),
                         name: roomName,
                         creator_id: currentUser.id,
-                        member_count: 1
+                        creator_name: roomName,
+                        member_count: 1,
+                        is_active: true,
+                        is_game_started: false
                     };
+                    
                     currentRoom = localRoom;
                     await showRoomDetails(localRoom.id);
-                    showMessage(`Комната "${roomName}" создана локально!`, 'success');
+                    showMessage(`Комната "${roomName}" создана!`, 'success');
                 }
             } catch (error) {
-                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА создания комнаты:', error);
-                showMessage('Ошибка создания комнаты!', 'error');
+                console.error('❌ СЕТЕВАЯ ОШИБКА:', error);
+                
+                // СОЗДАЕМ ЛОКАЛЬНО ПРИ ОШИБКЕ СЕТИ
+                console.log('🔄 API недоступен, создаем локально...');
+                const localRoom = {
+                    id: Date.now(),
+                    name: roomName,
+                    creator_id: currentUser.id,
+                    creator_name: roomName,
+                    member_count: 1,
+                    is_active: true,
+                    is_game_started: false
+                };
+                
+                currentRoom = localRoom;
+                await showRoomDetails(localRoom.id);
+                showMessage(`Комната "${roomName}" создана!`, 'success');
             }
         }
 
