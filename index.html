@@ -372,44 +372,60 @@
         let currentUser = null;
         
         async function initializeUser() {
-            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                
-                // Получаем реальные данные пользователя из Telegram
-                currentUser = {
-                    id: telegramUser.id,
-                    telegram_id: telegramUser.id,
-                    first_name: telegramUser.first_name || 'Игрок',
-                    last_name: telegramUser.last_name || ''
-                };
-                
-                console.log('Пользователь из Telegram:', currentUser);
-                
-                // TODO: В будущем здесь будет синхронизация с API
-                // try {
-                //     const response = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`);
-                //     if (response.ok) {
-                //         const dbUser = await response.json();
-                //         currentUser = dbUser;
-                //     } else {
-                //         // Создаем пользователя в базе
-                //         await fetch(`${API_BASE_URL}/players/`, {
-                //             method: 'POST',
-                //             headers: { 'Content-Type': 'application/json' },
-                //             body: JSON.stringify(currentUser)
-                //         });
-                //     }
-                // } catch (error) {
-                //     console.log('API недоступен, используем данные из Telegram');
-                // }
-            } else {
-                // Fallback для работы вне Telegram
+            // Принудительно инициализируем Telegram WebApp
+            if (window.Telegram && window.Telegram.WebApp) {
+                try {
+                    window.Telegram.WebApp.ready();
+                    window.Telegram.WebApp.expand();
+                    
+                    // Ждем немного для полной инициализации
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    console.log('Telegram WebApp инициализирован');
+                    console.log('initData:', window.Telegram.WebApp.initData);
+                    console.log('initDataUnsafe:', window.Telegram.WebApp.initDataUnsafe);
+                    
+                    if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                        const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+                        console.log('Telegram user:', telegramUser);
+                        
+                        currentUser = {
+                            id: telegramUser.id,
+                            telegram_id: telegramUser.id,
+                            first_name: telegramUser.first_name || 'Игрок',
+                            last_name: telegramUser.last_name || ''
+                        };
+                        
+                        console.log('✅ Пользователь из Telegram:', currentUser);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Ошибка инициализации Telegram WebApp:', error);
+                }
+            }
+            
+            // Fallback: проверяем URL параметры (для тестирования)
+            const urlParams = new URLSearchParams(window.location.search);
+            const testUser = urlParams.get('test_user');
+            
+            if (testUser) {
+                const [first_name, last_name] = testUser.split('_');
                 currentUser = {
                     id: Date.now(),
                     telegram_id: Date.now(),
-                    first_name: 'Тестовый',
-                    last_name: 'Пользователь'
+                    first_name: first_name || 'Иван',
+                    last_name: last_name || 'Золотарев'
                 };
+                console.log('🧪 Тестовый пользователь из URL:', currentUser);
+            } else {
+                // Последний fallback
+                currentUser = {
+                    id: Date.now(),
+                    telegram_id: Date.now(),
+                    first_name: 'Демо',
+                    last_name: 'Режим'
+                };
+                console.log('⚠️ Fallback пользователь:', currentUser);
             }
         }
 
@@ -448,21 +464,27 @@
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', async function() {
-            // Инициализируем Telegram Mini App
-            if (window.Telegram && window.Telegram.WebApp) {
-                window.Telegram.WebApp.ready();
-                console.log('Telegram Mini App инициализирован');
-                console.log('Данные пользователя из Telegram:', window.Telegram.WebApp.initDataUnsafe.user);
-            } else {
-                console.log('Telegram Mini App не найден, используем fallback данные');
-            }
+            console.log('🚀 Инициализация Mini App...');
             
-            // Инициализируем пользователя
+            // Инициализируем пользователя ПЕРВЫМ ДЕЛОМ
             await initializeUser();
             
-            // Принудительно обновляем кэш
-            console.log('Версия Mini App: 2.4 - ' + new Date().toISOString());
-            console.log('Текущие данные пользователя:', currentUser);
+            // Показываем отладочную информацию
+            console.log('🔍 DEBUG: Версия 2.5 - ' + new Date().toISOString());
+            console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
+            console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
+            console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
+            
+            // Проверяем что пользователь инициализирован
+            if (!currentUser) {
+                console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: currentUser не инициализирован!');
+                currentUser = {
+                    id: Date.now(),
+                    telegram_id: Date.now(),
+                    first_name: 'ОШИБКА',
+                    last_name: 'ИНИЦИАЛИЗАЦИИ'
+                };
+            }
             
             setupEventListeners();
             showMainMenu();
