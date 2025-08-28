@@ -422,8 +422,8 @@
                 console.log('🧪 Telegram недоступен, создаем тестового пользователя...');
                 telegramUser = {
                     id: 972717950, // ВАШ реальный Telegram ID
-                    first_name: 'Иван',
-                    last_name: 'Золотарев',
+                    first_name: 'УКАЖИТЕ_ВАШЕ_ИМЯ', // Замените на ваше реальное имя из бота
+                    last_name: 'УКАЖИТЕ_ВАШУ_ФАМИЛИЮ', // Замените на вашу реальную фамилию из бота
                     username: 'ivanzo'
                 };
                 console.log('🧪 ТЕСТОВЫЙ пользователь создан:', telegramUser);
@@ -437,13 +437,59 @@
                     
                     if (response.ok) {
                         const dbUser = await response.json();
-                        currentUser = {
-                            id: dbUser.id,
-                            telegram_id: dbUser.telegram_id,
-                            first_name: dbUser.first_name,
-                            last_name: dbUser.last_name
-                        };
-                        console.log('✅ НАЙДЕН в базе:', currentUser);
+                        
+                        // ПРОВЕРЯЕМ И ОБНОВЛЯЕМ ИМЕНА ЕСЛИ ОНИ ИЗМЕНИЛИСЬ
+                        if (dbUser.first_name !== telegramUser.first_name || dbUser.last_name !== telegramUser.last_name) {
+                            console.log('🔄 ОБНОВЛЯЕМ имена пользователя в базе...');
+                            console.log('Старые:', dbUser.first_name, dbUser.last_name);
+                            console.log('Новые:', telegramUser.first_name, telegramUser.last_name);
+                            
+                            try {
+                                const updateResponse = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        first_name: telegramUser.first_name || dbUser.first_name,
+                                        last_name: telegramUser.last_name || dbUser.last_name
+                                    })
+                                });
+                                
+                                if (updateResponse.ok) {
+                                    const updatedUser = await updateResponse.json();
+                                    console.log('✅ ИМЕНА ОБНОВЛЕНЫ в базе:', updatedUser);
+                                    currentUser = {
+                                        id: updatedUser.id,
+                                        telegram_id: updatedUser.telegram_id,
+                                        first_name: updatedUser.first_name,
+                                        last_name: updatedUser.last_name
+                                    };
+                                } else {
+                                    console.log('⚠️ Не удалось обновить имена, используем новые из Telegram');
+                                    currentUser = {
+                                        id: dbUser.id,
+                                        telegram_id: dbUser.telegram_id,
+                                        first_name: telegramUser.first_name || dbUser.first_name,
+                                        last_name: telegramUser.last_name || dbUser.last_name
+                                    };
+                                }
+                            } catch (updateError) {
+                                console.log('⚠️ Ошибка обновления имен, используем новые из Telegram');
+                                currentUser = {
+                                    id: dbUser.id,
+                                    telegram_id: dbUser.telegram_id,
+                                    first_name: telegramUser.first_name || dbUser.first_name,
+                                    last_name: telegramUser.last_name || dbUser.last_name
+                                };
+                            }
+                        } else {
+                            currentUser = {
+                                id: dbUser.id,
+                                telegram_id: dbUser.telegram_id,
+                                first_name: dbUser.first_name,
+                                last_name: dbUser.last_name
+                            };
+                        }
+                        console.log('✅ ФИНАЛЬНЫЕ данные пользователя:', currentUser);
                     } else {
                         console.log('💾 СОЗДАЕМ нового пользователя в базе...');
                         
@@ -531,7 +577,7 @@
             await initializeUser();
             
             // Показываем отладочную информацию  
-            console.log('🔥 ПРИНУДИТЕЛЬНАЯ TELEGRAM ИНТЕГРАЦИЯ: Версия 5.0 - ' + new Date().toISOString());
+            console.log('🔥 АВТООБНОВЛЕНИЕ ИМЕН ИЗ TELEGRAM: Версия 5.1 - ' + new Date().toISOString());
             console.log('🔍 DEBUG: Window.Telegram доступен:', !!window.Telegram);
             console.log('🔍 DEBUG: WebApp доступен:', !!(window.Telegram && window.Telegram.WebApp));
             console.log('🔍 DEBUG: Финальные данные пользователя:', currentUser);
