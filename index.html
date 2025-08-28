@@ -363,27 +363,57 @@
     </div>
 
     <script>
-        // Версия 2.3 - Го Бадмин
+        // Версия 2.4 - Го Бадмин с подключением к API
+        const API_BASE_URL = window.location.hostname === 'localhost' ? 
+            'http://localhost:8000' : 
+            'https://api.your-domain.com'; // Здесь нужно будет указать реальный API домен
+        
         // Получаем данные пользователя из Telegram Mini App
+        let currentUser = null;
+        
+        async function initializeUser() {
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+                
+                // Получаем реальные данные пользователя из Telegram
+                currentUser = {
+                    id: telegramUser.id,
+                    telegram_id: telegramUser.id,
+                    first_name: telegramUser.first_name || 'Игрок',
+                    last_name: telegramUser.last_name || ''
+                };
+                
+                console.log('Пользователь из Telegram:', currentUser);
+                
+                // TODO: В будущем здесь будет синхронизация с API
+                // try {
+                //     const response = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`);
+                //     if (response.ok) {
+                //         const dbUser = await response.json();
+                //         currentUser = dbUser;
+                //     } else {
+                //         // Создаем пользователя в базе
+                //         await fetch(`${API_BASE_URL}/players/`, {
+                //             method: 'POST',
+                //             headers: { 'Content-Type': 'application/json' },
+                //             body: JSON.stringify(currentUser)
+                //         });
+                //     }
+                // } catch (error) {
+                //     console.log('API недоступен, используем данные из Telegram');
+                // }
+            } else {
+                // Fallback для работы вне Telegram
+                currentUser = {
+                    id: Date.now(),
+                    telegram_id: Date.now(),
+                    first_name: 'Тестовый',
+                    last_name: 'Пользователь'
+                };
+            }
+        }
+
         const fallbackData = {
-            currentUser: (() => {
-                // Пытаемся получить данные пользователя из Telegram Mini App
-                if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                    const user = window.Telegram.WebApp.initDataUnsafe.user;
-                    return {
-                        id: user.id,
-                        first_name: user.first_name || 'Гость',
-                        last_name: user.last_name || ''
-                    };
-                } else {
-                    // Fallback для работы вне Telegram
-                    return {
-                        id: Date.now(),
-                        first_name: 'Игрок',
-                        last_name: 'Неуказано'
-                    };
-                }
-            })(),
             availableRooms: [
                 {
                     id: 1,
@@ -417,7 +447,7 @@
         let currentRoom = null;
 
         // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Инициализируем Telegram Mini App
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.ready();
@@ -427,9 +457,12 @@
                 console.log('Telegram Mini App не найден, используем fallback данные');
             }
             
+            // Инициализируем пользователя
+            await initializeUser();
+            
             // Принудительно обновляем кэш
             console.log('Версия Mini App: 2.4 - ' + new Date().toISOString());
-            console.log('Текущие данные пользователя:', fallbackData.currentUser);
+            console.log('Текущие данные пользователя:', currentUser);
             
             setupEventListeners();
             showMainMenu();
@@ -510,14 +543,19 @@
         }
 
         function handleCreateRoom() {
+            if (!currentUser) {
+                showMessage('Ошибка: пользователь не инициализирован', 'error');
+                return;
+            }
+            
             // Создаем комнату с названием, основанным на имени создателя
-            console.log('Данные пользователя:', fallbackData.currentUser);
+            console.log('Данные пользователя:', currentUser);
             
             let roomName;
-            if (fallbackData.currentUser.last_name) {
-                roomName = `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}`;
+            if (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') {
+                roomName = `${currentUser.first_name} ${currentUser.last_name}`;
             } else {
-                roomName = fallbackData.currentUser.first_name;
+                roomName = currentUser.first_name;
             }
             
             console.log('Название комнаты:', roomName);
@@ -525,7 +563,7 @@
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
-                creator_id: fallbackData.currentUser.id,
+                creator_id: currentUser.id,
                 member_count: 1
             };
 
@@ -536,13 +574,18 @@
 
         async function showRoomDetails(roomId) {
             try {
-                // Симуляция API вне Telegram
+                if (!currentUser) {
+                    showMessage('Ошибка: пользователь не инициализирован', 'error');
+                    return;
+                }
+
+                // Симуляция API вне Telegram (пока что)
                 const room = fallbackData.availableRooms.find(r => r.id === roomId) || {
                     id: roomId,
-                    name: fallbackData.currentUser.last_name ? 
-                        `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}` : 
-                        fallbackData.currentUser.first_name,
-                    creator_id: fallbackData.currentUser.id,
+                    name: (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') ? 
+                        `${currentUser.first_name} ${currentUser.last_name}` : 
+                        currentUser.first_name,
+                    creator_id: currentUser.id,
                     member_count: 1
                 };
 
@@ -550,11 +593,11 @@
                     room_id: roomId,
                     members: [
                         {
-                            player_id: fallbackData.currentUser.id,
+                            player_id: currentUser.id,
                             is_leader: true,
-                            name: fallbackData.currentUser.last_name ? 
-                                `${fallbackData.currentUser.first_name} ${fallbackData.currentUser.last_name}` : 
-                                fallbackData.currentUser.first_name,
+                            name: (currentUser.last_name && currentUser.last_name !== 'Неуказано' && currentUser.last_name !== '') ? 
+                                `${currentUser.first_name} ${currentUser.last_name}` : 
+                                currentUser.first_name,
                             rating: 'B+'
                         }
                     ],
@@ -572,8 +615,8 @@
                 displayMembersList(membersData.members);
 
                 // Show/hide buttons based on user role
-                const isLeader = room.creator_id === fallbackData.currentUser.id;
-                const isMember = membersData.members.some(m => m.player_id === fallbackData.currentUser.id);
+                const isLeader = room.creator_id === currentUser.id;
+                const isMember = membersData.members.some(m => m.player_id === currentUser.id);
 
                 if (isLeader) {
                     document.getElementById('leader-controls').classList.remove('hidden');
