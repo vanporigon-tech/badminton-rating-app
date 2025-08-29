@@ -370,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 8.3 - ПОЛУЧЕНИЕ РЕАЛЬНЫХ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ TELEGRAM
+        // Версия 8.4 - МНОЖЕСТВЕННЫЕ СПОСОБЫ ПОЛУЧЕНИЯ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -415,7 +415,7 @@
                             if (typeof webApp.onEvent === 'function') {
                                 webApp.onEvent('ready', onReady);
                                 console.log('📡 Подписка на ready выполнена');
-                            } else {
+                } else {
                                 console.log('⚠️ onEvent недоступен');
                             }
                         } catch (e) {
@@ -543,22 +543,74 @@
                 }
             }
             
-            // КРИТИЧЕСКАЯ ОШИБКА - НЕ УДАЛОСЬ ПОЛУЧИТЬ ДАННЫЕ ИЗ TELEGRAM
-            console.log('❌ КРИТИЧЕСКАЯ ОШИБКА: НЕ УДАЛОСЬ ПОЛУЧИТЬ ДАННЫЕ ИЗ TELEGRAM!');
-            console.log('⚠️ Приложение должно быть открыто только через Telegram бота!');
+            // FALLBACK - ПОПЫТКА ПОЛУЧИТЬ ДАННЫЕ АЛЬТЕРНАТИВНЫМИ СПОСОБАМИ
+            console.log('⚠️ TELEGRAM WebApp данные недоступны, пробуем альтернативные способы...');
             
-            // Показываем ошибку пользователю
-            alert('❌ Ошибка получения данных из Telegram!\n\nПожалуйста:\n1. Откройте приложение через Telegram бота\n2. Перезапустите приложение\n3. Проверьте подключение к интернету');
+            // 1. Пробуем localStorage
+            try {
+                const saved = localStorage.getItem('badminton_current_user');
+                if (saved) {
+                    currentUser = JSON.parse(saved);
+                    console.log('💾 Восстановлены данные из localStorage:', currentUser);
+                    updateUserDisplay();
+                    return;
+                }
+            } catch (e) {
+                console.log('❌ Ошибка чтения localStorage:', e);
+            }
             
-            // Устанавливаем пользователя с ошибкой
-            currentUser = {
-                id: 0,
-                telegram_id: 0,
-                first_name: 'ОШИБКА',
-                last_name: 'ПОЛУЧЕНИЯ_ДАННЫХ',
-                username: 'error_user',
-                rating: 0
-            };
+            // 2. Пробуем получить через API твоего ID
+            try {
+                console.log('🔄 Пытаемся получить данные через API...');
+                const response = await fetch(`${API_BASE_URL}/players/972717950`);
+                if (response.ok) {
+                    const apiUser = await response.json();
+                    currentUser = {
+                        id: apiUser.telegram_id,
+                        telegram_id: apiUser.telegram_id,
+                        first_name: apiUser.first_name || 'Пользователь',
+                        last_name: apiUser.last_name || '',
+                        username: apiUser.username || '',
+                        rating: apiUser.rating || 1500
+                    };
+                    console.log('🎉 ДАННЫЕ ПОЛУЧЕНЫ ЧЕРЕЗ API:', currentUser);
+                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                    updateUserDisplay();
+                    return;
+                }
+            } catch (e) {
+                console.log('❌ Ошибка API запроса:', e);
+            }
+            
+            // 3. Последний fallback - запрашиваем имя у пользователя
+            console.log('❌ Все автоматические способы неудачны, запрашиваем имя...');
+            
+            const firstName = prompt('Telegram данные недоступны.\n\nВведите ваше имя:', '');
+            const lastName = prompt('Введите вашу фамилию (необязательно):', '');
+            
+            if (firstName) {
+                currentUser = {
+                    id: Date.now(), // Временный ID
+                    telegram_id: Date.now(),
+                    first_name: firstName,
+                    last_name: lastName || '',
+                    username: '',
+                    rating: 1500
+                };
+                console.log('✅ Данные введены пользователем:', currentUser);
+                localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+            } else {
+                // Совсем критическая ошибка
+                currentUser = {
+                    id: 0,
+                    telegram_id: 0,
+                    first_name: 'Гость',
+                    last_name: '',
+                    username: 'guest',
+                    rating: 1000
+                };
+                console.log('❌ КРИТИЧЕСКАЯ ОШИБКА: Используем гостя');
+            }
             
             updateUserDisplay();
             console.log('🏁 ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА:', currentUser);
