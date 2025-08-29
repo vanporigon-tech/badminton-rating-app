@@ -370,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 8.2 - ИСПРАВЛЕНИЕ TELEGRAM WebApp ИНИЦИАЛИЗАЦИИ
+        // Версия 8.3 - ПОЛУЧЕНИЕ РЕАЛЬНЫХ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ TELEGRAM
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -379,48 +379,87 @@
         // Получаем данные пользователя из Telegram Mini App
         let currentUser = null;
         
-        // ОЖИДАНИЕ ПОЛНОЙ ГОТОВНОСТИ TELEGRAM WebApp
+        // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
         function waitForTelegramWebApp() {
             return new Promise((resolve) => {
-                // Проверяем доступность Telegram WebApp
-                if (!window.Telegram?.WebApp) {
-                    console.log('❌ TELEGRAM WebApp НЕ НАЙДЕН');
-                    resolve(false);
-                    return;
-                }
+                console.log('🔍 ПРОВЕРКА ДОСТУПНОСТИ TELEGRAM WebApp...');
                 
-                console.log('🚀 TELEGRAM WebApp ОБНАРУЖЕН v8.2');
-                const webApp = window.Telegram.WebApp;
+                // Максимум 5 попыток поиска Telegram WebApp
+                let attempts = 0;
+                const maxAttempts = 5;
                 
-                // Обработчик события ready
-                const onReady = () => {
-                    console.log('✅ TELEGRAM WebApp ГОТОВ');
-                    resolve(true);
+                const checkTelegram = () => {
+                    attempts++;
+                    console.log(`📡 Попытка ${attempts}/${maxAttempts} найти Telegram WebApp...`);
+                    
+                    if (window.Telegram?.WebApp) {
+                        console.log('🚀 TELEGRAM WebApp НАЙДЕН v8.3!');
+                        const webApp = window.Telegram.WebApp;
+                        
+                        // Проверяем наличие необходимых методов
+                        console.log('🔍 Проверяем методы WebApp:');
+                        console.log('  ready():', typeof webApp.ready === 'function');
+                        console.log('  expand():', typeof webApp.expand === 'function');
+                        console.log('  onEvent():', typeof webApp.onEvent === 'function');
+                        
+                        // Обработчик события ready
+                        let readyFired = false;
+                        const onReady = () => {
+                            console.log('✅ TELEGRAM WebApp READY EVENT FIRED!');
+                            readyFired = true;
+                            resolve(true);
+                        };
+                        
+                        // Подписываемся на событие ready
+                        try {
+                            if (typeof webApp.onEvent === 'function') {
+                                webApp.onEvent('ready', onReady);
+                                console.log('📡 Подписка на ready выполнена');
+                            } else {
+                                console.log('⚠️ onEvent недоступен');
+                            }
+                        } catch (e) {
+                            console.log('❌ Ошибка подписки на ready:', e);
+                        }
+                        
+                        // Принудительная инициализация
+                        try {
+                            if (typeof webApp.ready === 'function') {
+                                webApp.ready();
+                                console.log('📱 WebApp.ready() выполнен');
+                            }
+                            if (typeof webApp.expand === 'function') {
+                                webApp.expand();
+                                console.log('📱 WebApp.expand() выполнен');
+                            }
+                        } catch (e) {
+                            console.log('❌ Ошибка инициализации WebApp:', e);
+                        }
+                        
+                        // Timeout - если ready не сработало через 3 секунды, продолжаем
+                        setTimeout(() => {
+                            if (!readyFired) {
+                                console.log('⏰ Ready не сработал, продолжаем принудительно...');
+                                resolve(true);
+                            }
+                        }, 3000);
+                        
+                        return; // Выходим из цикла попыток
+                    } else {
+                        console.log(`❌ Попытка ${attempts}: window.Telegram.WebApp не найден`);
+                        
+                        if (attempts >= maxAttempts) {
+                            console.log('❌ КРИТИЧЕСКАЯ ОШИБКА: НЕ УДАЛОСЬ НАЙТИ TELEGRAM WebApp!');
+                            resolve(false);
+                        } else {
+                            // Повторяем попытку через 500мс
+                            setTimeout(checkTelegram, 500);
+                        }
+                    }
                 };
                 
-                // Подписываемся на событие ready
-                try {
-                    webApp.onEvent('ready', onReady);
-                } catch (e) {
-                    console.log('⚠️ Не удалось подписаться на событие ready:', e);
-                }
-                
-                // Принудительная инициализация
-                try {
-                    webApp.ready();
-                    webApp.expand();
-                    console.log('📱 WebApp.ready() и WebApp.expand() выполнены');
-                } catch (e) {
-                    console.log('❌ Ошибка инициализации WebApp:', e);
-                    resolve(false);
-                    return;
-                }
-                
-                // Timeout - если ready не сработало через 2 секунды
-                setTimeout(() => {
-                    console.log('⚠️ Timeout ожидания ready, продолжаем...');
-                    resolve(true);
-                }, 2000);
+                // Начинаем поиск
+                checkTelegram();
             });
         }
         
@@ -465,18 +504,37 @@
                 
                 // Если получили данные пользователя из Telegram
                 if (telegramUser?.id) {
+                    // ФОРМИРУЕМ ИМЯ ПОЛЬЗОВАТЕЛЯ - ВСЕГДА ЧТО-ТО ДОЛЖНО БЫТЬ!
+                    let displayFirstName = telegramUser.first_name || '';
+                    let displayLastName = telegramUser.last_name || '';
+                    let displayUsername = telegramUser.username || '';
+                    
+                    // Если нет имени, используем username
+                    if (!displayFirstName && !displayLastName && displayUsername) {
+                        displayFirstName = displayUsername;
+                        displayLastName = '';
+                    }
+                    
+                    // Если совсем ничего нет - это ошибка, но используем ID
+                    if (!displayFirstName && !displayLastName && !displayUsername) {
+                        displayFirstName = `User_${telegramUser.id}`;
+                        displayLastName = '';
+                    }
+                    
                     currentUser = {
                         id: telegramUser.id,
                         telegram_id: telegramUser.id,
-                        first_name: telegramUser.first_name || 'Пользователь',
-                        last_name: telegramUser.last_name || '',
-                        username: telegramUser.username || '',
+                        first_name: displayFirstName,
+                        last_name: displayLastName,
+                        username: displayUsername,
                         rating: 1500
                     };
                     
                     console.log('🎉 УСПЕХ! ПОЛЬЗОВАТЕЛЬ ИЗ TELEGRAM:');
                     console.log(`  ID: ${currentUser.telegram_id}`);
-                    console.log(`  Имя: ${currentUser.first_name} ${currentUser.last_name}`);
+                    console.log(`  Имя: "${currentUser.first_name}"`);
+                    console.log(`  Фамилия: "${currentUser.last_name}"`);
+                    console.log(`  Username: "${currentUser.username}"`);
                     
                     // Сохраняем в localStorage
                     localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
@@ -485,37 +543,22 @@
                 }
             }
             
-            // FALLBACK: Пробуем localStorage или используем демо
-            console.log('⚠️ TELEGRAM данные недоступны, ищем в localStorage...');
+            // КРИТИЧЕСКАЯ ОШИБКА - НЕ УДАЛОСЬ ПОЛУЧИТЬ ДАННЫЕ ИЗ TELEGRAM
+            console.log('❌ КРИТИЧЕСКАЯ ОШИБКА: НЕ УДАЛОСЬ ПОЛУЧИТЬ ДАННЫЕ ИЗ TELEGRAM!');
+            console.log('⚠️ Приложение должно быть открыто только через Telegram бота!');
             
-            try {
-                const saved = localStorage.getItem('badminton_current_user');
-                if (saved) {
-                    currentUser = JSON.parse(saved);
-                    console.log('💾 ВОССТАНОВЛЕН ИЗ localStorage:', currentUser);
-                } else {
-                    // Последний fallback - используем твой реальный ID
-                    console.log('❌ localStorage пуст, используем fallback с твоим ID');
-                    currentUser = {
-                        id: 972717950,
-                        telegram_id: 972717950, 
-                        first_name: 'Ivan',
-                        last_name: 'Zolotarev',
-                        username: 'ivan_user',
-                        rating: 1500
-                    };
-                }
-            } catch (e) {
-                console.log('❌ Ошибка localStorage:', e);
-                currentUser = {
-                    id: 972717950,
-                    telegram_id: 972717950,
-                    first_name: 'Ivan',
-                    last_name: 'Zolotarev',
-                    username: 'ivan_user',
-                    rating: 1500
-                };
-            }
+            // Показываем ошибку пользователю
+            alert('❌ Ошибка получения данных из Telegram!\n\nПожалуйста:\n1. Откройте приложение через Telegram бота\n2. Перезапустите приложение\n3. Проверьте подключение к интернету');
+            
+            // Устанавливаем пользователя с ошибкой
+            currentUser = {
+                id: 0,
+                telegram_id: 0,
+                first_name: 'ОШИБКА',
+                last_name: 'ПОЛУЧЕНИЯ_ДАННЫХ',
+                username: 'error_user',
+                rating: 0
+            };
             
             updateUserDisplay();
             console.log('🏁 ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА:', currentUser);
