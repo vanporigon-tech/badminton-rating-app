@@ -302,11 +302,7 @@
         <div id="main-menu" class="section">
             <div id="user-info" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                 <h3 id="current-user-name">Загрузка...</h3>
-                <p id="current-user-id" style="font-size: 12px; color: #888;">ID: ...</p>
-                <p id="current-user-username" style="font-size: 12px; color: #888;">Username: ...</p>
-                <p id="telegram-debug" style="font-size: 10px; color: #666; margin-top: 10px;">Отладка: ...</p>
-                <button id="update-name-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Обновить имя</button>
-                <button id="debug-telegram-btn" class="btn btn-back" style="margin-top: 5px; font-size: 10px;">🔍 Показать Telegram данные</button>
+                <button id="auto-fill-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Автозаполнение данных</button>
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
@@ -374,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 7.1 - ПРЯМОЕ ПОЛУЧЕНИЕ ИМЕНИ ИЗ TELEGRAM WebApp API
+        // Версия 8.0 - ТОЛЬКО TELEGRAM WebApp, АВТОЗАПОЛНЕНИЕ ИМЕНИ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -384,7 +380,7 @@
         let currentUser = null;
         
         async function initializeUser() {
-            console.log('🚀 ПОЛУЧАЕМ ДАННЫЕ НАПРЯМУЮ ИЗ TELEGRAM v7.1');
+            console.log('🚀 АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ ИЗ TELEGRAM v8.0');
             
             // Инициализируем Telegram WebApp
             if (window.Telegram && window.Telegram.WebApp) {
@@ -397,22 +393,13 @@
                 }
             }
             
-            // ПРОВЕРЯЕМ ВСЕ ДОСТУПНЫЕ ДАННЫЕ TELEGRAM
-            console.log('🔍 ОТЛАДКА TELEGRAM ДАННЫХ:');
-            console.log('window.Telegram:', !!window.Telegram);
-            console.log('window.Telegram.WebApp:', !!window.Telegram?.WebApp);
-            console.log('initDataUnsafe:', window.Telegram?.WebApp?.initDataUnsafe);
-            console.log('user:', window.Telegram?.WebApp?.initDataUnsafe?.user);
-            
+            // АВТОМАТИЧЕСКИ ПОЛУЧАЕМ ДАННЫЕ ИЗ TELEGRAM
             let telegramUser = null;
             
-            // ПЫТАЕМСЯ ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЯ ВСЕМИ СПОСОБАМИ
             if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
                 telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ initDataUnsafe:', telegramUser);
+                console.log('✅ АВТОМАТИЧЕСКИ ПОЛУЧЕН ПОЛЬЗОВАТЕЛЬ:', telegramUser);
             } else if (window.Telegram?.WebApp?.initData) {
-                console.log('🔍 Пытаемся парсить initData:', window.Telegram.WebApp.initData);
-                // Попытка распарсить initData manually
                 try {
                     const initData = window.Telegram.WebApp.initData;
                     if (initData) {
@@ -420,85 +407,47 @@
                         const userParam = params.get('user');
                         if (userParam) {
                             telegramUser = JSON.parse(decodeURIComponent(userParam));
-                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ initData:', telegramUser);
+                            console.log('✅ АВТОМАТИЧЕСКИ РАСПАРСЕН ПОЛЬЗОВАТЕЛЬ:', telegramUser);
                         }
                     }
                 } catch (e) {
-                    console.log('❌ Ошибка парсинга initData:', e);
+                    console.log('❌ Ошибка автоматического парсинга:', e);
                 }
             }
             
-            // ЕСЛИ НАШЛИ ПОЛЬЗОВАТЕЛЯ - ИСПОЛЬЗУЕМ ЕГО ДАННЫЕ
+            // УСТАНАВЛИВАЕМ ПОЛЬЗОВАТЕЛЯ
             if (telegramUser && telegramUser.id) {
                 currentUser = {
                     id: telegramUser.id,
                     telegram_id: telegramUser.id,
                     first_name: telegramUser.first_name || 'Пользователь',
                     last_name: telegramUser.last_name || '',
-                    username: telegramUser.username || '',
                     rating: 1500
                 };
                 
-                console.log('🎯 ПОЛЬЗОВАТЕЛЬ ИЗ TELEGRAM УСТАНОВЛЕН:');
-                console.log(`👤 ID: ${currentUser.telegram_id}`);
-                console.log(`👤 Имя: ${currentUser.first_name}`);
-                console.log(`👤 Фамилия: ${currentUser.last_name}`);
-                console.log(`👤 Username: ${currentUser.username}`);
+                console.log('🎯 АВТОМАТИЧЕСКИ УСТАНОВЛЕН ПОЛЬЗОВАТЕЛЬ:');
+                console.log(`👤 ${currentUser.first_name} ${currentUser.last_name}`);
                 
-                // Сохраняем в localStorage для следующих сессий
+                // Автоматически сохраняем в localStorage
                 try {
                     localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                    console.log('💾 Пользователь сохранен в localStorage');
+                    console.log('💾 Автоматически сохранен в localStorage');
                 } catch (e) {
-                    console.log('⚠️ Не удалось сохранить в localStorage');
+                    console.log('⚠️ Не удалось сохранить автоматически');
                 }
                 
             } else {
-                console.log('⚠️ Telegram пользователь не найден, пытаемся из localStorage');
-                
-                // Пробуем загрузить из localStorage
-                try {
-                    const saved = localStorage.getItem('badminton_current_user');
-                    if (saved) {
-                        currentUser = JSON.parse(saved);
-                        console.log('💾 ВОССТАНОВЛЕН из localStorage:', currentUser);
-                    } else {
-                        throw new Error('Нет сохраненного пользователя');
-                    }
-                } catch (e) {
-                    console.log('❌ Fallback к тестовому пользователю');
-                    currentUser = {
-                        id: 972717950,
-                        telegram_id: 972717950,
-                        first_name: 'Тестовый',
-                        last_name: 'Пользователь',
-                        username: 'testuser',
-                        rating: 1500
-                    };
-                }
+                console.log('❌ НЕ УДАЛОСЬ ПОЛУЧИТЬ TELEGRAM ДАННЫЕ АВТОМАТИЧЕСКИ');
+                currentUser = {
+                    id: 972717950,
+                    telegram_id: 972717950,
+                    first_name: 'Демо',
+                    last_name: 'Пользователь',
+                    rating: 1500
+                };
             }
             
             console.log('🎯 ФИНАЛЬНЫЙ ПОЛЬЗОВАТЕЛЬ:', currentUser);
-            
-            // ДОПОЛНИТЕЛЬНАЯ ОТЛАДКА - слушаем события Telegram
-            if (window.Telegram?.WebApp) {
-                try {
-                    // Пробуем подписаться на события
-                    console.log('🔔 Подписываемся на события Telegram WebApp...');
-                    
-                    // Показываем все доступные методы и свойства
-                    const webApp = window.Telegram.WebApp;
-                    console.log('📋 WebApp методы и свойства:', Object.getOwnPropertyNames(webApp));
-                    console.log('📋 WebApp.MainButton:', webApp.MainButton);
-                    console.log('📋 WebApp.BackButton:', webApp.BackButton);
-                    console.log('📋 WebApp.platform:', webApp.platform);
-                    console.log('📋 WebApp.colorScheme:', webApp.colorScheme);
-                    console.log('📋 WebApp.themeParams:', webApp.themeParams);
-                    
-                } catch (e) {
-                    console.log('❌ Ошибка при работе с WebApp событиями:', e);
-                }
-            }
         }
         
         // Функция для обновления данных пользователя в базе
@@ -655,16 +604,13 @@
                 console.error('❌ Кнопка create-game-btn не найдена!');
             }
             
-            // Кнопка обновления имени
-            const updateNameBtn = document.getElementById('update-name-btn');
-            if (updateNameBtn) {
-                updateNameBtn.addEventListener('click', handleUpdateName);
-            }
-            
-            // Кнопка отладки Telegram
-            const debugBtn = document.getElementById('debug-telegram-btn');
-            if (debugBtn) {
-                debugBtn.addEventListener('click', showTelegramDebug);
+            // Кнопка автозаполнения данных
+            const autoFillBtn = document.getElementById('auto-fill-btn');
+            if (autoFillBtn) {
+                autoFillBtn.addEventListener('click', autoFillUserData);
+                console.log('✅ Кнопка автозаполнения подключена');
+            } else {
+                console.error('❌ Кнопка auto-fill-btn не найдена!');
             }
 
             // Back buttons
@@ -703,47 +649,54 @@
             showSection('main-menu');
         }
         
-        // Обновление отображения информации о пользователе
+        // Автоматическое обновление отображения имени пользователя
         function updateUserDisplay() {
             if (!currentUser) return;
             
             const nameElement = document.getElementById('current-user-name');
-            const idElement = document.getElementById('current-user-id');
-            const usernameElement = document.getElementById('current-user-username');
-            const debugElement = document.getElementById('telegram-debug');
-            
             if (nameElement) {
                 nameElement.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
             }
-            if (idElement) {
-                idElement.textContent = `ID: ${currentUser.telegram_id}`;
-            }
-            if (usernameElement) {
-                usernameElement.textContent = `Username: @${currentUser.username || 'не указан'}`;
-            }
-            if (debugElement) {
-                const hasWebApp = !!window.Telegram?.WebApp;
-                const hasUser = !!window.Telegram?.WebApp?.initDataUnsafe?.user;
-                debugElement.textContent = `WebApp: ${hasWebApp}, User: ${hasUser}`;
-            }
             
-            console.log('🔄 Отображение пользователя обновлено');
+            console.log('✅ Имя пользователя автоматически обновлено');
         }
         
-        // Функция отладки Telegram данных
-        function showTelegramDebug() {
-            const data = {
-                'window.Telegram': !!window.Telegram,
-                'WebApp': !!window.Telegram?.WebApp,
-                'initDataUnsafe': window.Telegram?.WebApp?.initDataUnsafe,
-                'initData': window.Telegram?.WebApp?.initData,
-                'user': window.Telegram?.WebApp?.initDataUnsafe?.user,
-                'platform': window.Telegram?.WebApp?.platform,
-                'version': window.Telegram?.WebApp?.version
-            };
+        // Функция автозаполнения данных из Telegram
+        async function autoFillUserData() {
+            console.log('🔄 АВТОЗАПОЛНЕНИЕ ДАННЫХ ИЗ TELEGRAM...');
             
-            console.log('🔍 ПОЛНАЯ ОТЛАДКА TELEGRAM:', data);
-            alert('Смотри в консоль браузера (F12) для полной отладки Telegram данных');
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+                const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+                
+                // Обновляем текущего пользователя
+                currentUser = {
+                    id: telegramUser.id,
+                    telegram_id: telegramUser.id,
+                    first_name: telegramUser.first_name || 'Пользователь',
+                    last_name: telegramUser.last_name || '',
+                    rating: currentUser?.rating || 1500
+                };
+                
+                // Сохраняем в localStorage
+                try {
+                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                    console.log('💾 Данные автоматически сохранены');
+                } catch (e) {
+                    console.log('⚠️ Ошибка сохранения');
+                }
+                
+                // Обновляем отображение
+                updateUserDisplay();
+                
+                console.log('✅ АВТОЗАПОЛНЕНИЕ ЗАВЕРШЕНО:');
+                console.log(`👤 ${currentUser.first_name} ${currentUser.last_name}`);
+                
+                alert(`✅ Данные обновлены!\n${currentUser.first_name} ${currentUser.last_name}`);
+                
+            } else {
+                console.log('❌ Telegram данные недоступны для автозаполнения');
+                alert('❌ Telegram данные недоступны.\nОткройте приложение через Telegram бота.');
+            }
         }
         
         // Обработчик обновления имени
@@ -840,7 +793,7 @@
                     is_leader: true
                 }]
             };
-            
+
             currentRoom = newRoom;
             console.log('✅ КОМНАТА СОЗДАНА:', currentRoom);
             showMessage(`✅ Комната "${roomName}" создана!`, 'success');
@@ -879,16 +832,16 @@
             displayMembersList(members);
             
             // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА
-            document.getElementById('leader-controls').classList.remove('hidden');
-            document.getElementById('join-controls').classList.add('hidden');
-            
+                    document.getElementById('leader-controls').classList.remove('hidden');
+                    document.getElementById('join-controls').classList.add('hidden');
+
             // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-            const startGameBtn = document.getElementById('start-game-btn');
-            startGameBtn.disabled = true;
-            startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                    const startGameBtn = document.getElementById('start-game-btn');
+                        startGameBtn.disabled = true;
+                        startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
             
             console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
-            showSection('room-details');
+                showSection('room-details');
         }
 
         function displayMembersList(members) {
