@@ -300,6 +300,11 @@
 
         <!-- Главное меню -->
         <div id="main-menu" class="section">
+            <div id="user-info" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                <h3 id="current-user-name">Загрузка...</h3>
+                <p id="current-user-id" style="font-size: 12px; color: #888;">ID: ...</p>
+                <button id="update-name-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Обновить имя</button>
+            </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
         </div>
@@ -366,7 +371,7 @@
     </div>
 
     <script>
-        // Версия 6.2 - АВТОНОМНАЯ РАБОЧАЯ ВЕРСИЯ ✅
+        // Версия 7.0 - СИСТЕМА ИДЕНТИФИКАЦИИ ЧЕРЕЗ TELEGRAM ID + localStorage
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -376,39 +381,160 @@
         let currentUser = null;
         
         async function initializeUser() {
-            console.log('🔄 ПРОСТАЯ ИНИЦИАЛИЗАЦИЯ ПОЛЬЗОВАТЕЛЯ v6.2...');
+            console.log('🚀 СИСТЕМА ИДЕНТИФИКАЦИИ v7.0 - Telegram ID + localStorage');
             
-            // Пытаемся получить данные из Telegram (если доступны)
-            let telegramUser = null;
+            // ШАГИ ИНИЦИАЛИЗАЦИИ:
+            // 1. Получаем Telegram ID
+            // 2. Проверяем localStorage 
+            // 3. Синхронизируем с базой данных
+            // 4. Сохраняем в localStorage для следующих сессий
+            
+            let telegramId = null;
+            let telegramData = null;
+            
+            // ШАГ 1: Получаем РЕАЛЬНЫЙ Telegram ID
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                console.log('✅ Telegram пользователь получен:', telegramUser);
+                telegramData = window.Telegram.WebApp.initDataUnsafe.user;
+                telegramId = telegramData.id;
+                console.log('✅ РЕАЛЬНЫЙ Telegram ID получен:', telegramId);
+                console.log('📋 Данные Telegram:', telegramData);
                 window.Telegram.WebApp.ready();
                 window.Telegram.WebApp.expand();
             } else {
-                console.log('⚠️ Telegram данные недоступны');
+                console.log('⚠️ Telegram недоступен - используем fallback');
+                // Fallback для тестирования вне Telegram
+                telegramId = 972717950; // Твой тестовый ID
             }
             
-            // ВСЕГДА УСТАНАВЛИВАЕМ ПОЛЬЗОВАТЕЛЯ
-            if (telegramUser) {
-                // Используем реальные данные из Telegram
-                currentUser = {
-                    id: telegramUser.id,
-                    telegram_id: telegramUser.id,
-                    first_name: telegramUser.first_name || 'Игрок',
-                    last_name: telegramUser.last_name || ''
-                };
-                console.log('✅ Пользователь из Telegram:', currentUser);
-            } else {
-                // Используем тестового пользователя
-                currentUser = {
-                    id: 972717950,
-                    telegram_id: 972717950,
-                    first_name: 'Александр',
-                    last_name: 'Петров'
-                };
-                console.log('✅ Тестовый пользователь:', currentUser);
+            // ШАГ 2: Проверяем localStorage
+            const localStorageKey = `badminton_user_${telegramId}`;
+            let savedUser = null;
+            try {
+                const saved = localStorage.getItem(localStorageKey);
+                if (saved) {
+                    savedUser = JSON.parse(saved);
+                    console.log('💾 Найден сохраненный пользователь:', savedUser);
+                }
+            } catch (e) {
+                console.log('⚠️ Ошибка чтения localStorage:', e);
             }
+            
+            // ШАГ 3: Синхронизируем с базой данных
+            let finalUser = null;
+            try {
+                console.log(`🔍 Ищем пользователя в базе данных: ${telegramId}`);
+                const response = await fetch(`${API_BASE_URL}/players/${telegramId}`);
+                
+                if (response.ok) {
+                    const dbUser = await response.json();
+                    console.log('✅ ПОЛЬЗОВАТЕЛЬ НАЙДЕН В БАЗЕ:', dbUser);
+                    
+                    finalUser = {
+                        id: dbUser.id,
+                        telegram_id: dbUser.telegram_id,
+                        first_name: dbUser.first_name,
+                        last_name: dbUser.last_name,
+                        rating: dbUser.rating || 1500
+                    };
+                } else {
+                    throw new Error('Пользователь не найден в базе');
+                }
+            } catch (error) {
+                console.log('❌ База данных недоступна, используем локальные данные');
+                
+                if (savedUser) {
+                    finalUser = savedUser;
+                    console.log('💾 Используем сохраненного пользователя:', finalUser);
+                } else if (telegramData) {
+                    finalUser = {
+                        id: telegramData.id,
+                        telegram_id: telegramData.id,
+                        first_name: telegramData.first_name || 'Пользователь',
+                        last_name: telegramData.last_name || '',
+                        rating: 1500
+                    };
+                    console.log('📱 Создаем из Telegram данных:', finalUser);
+                } else {
+                    // Крайний fallback
+                    finalUser = {
+                        id: 972717950,
+                        telegram_id: 972717950,
+                        first_name: 'Тестовый',
+                        last_name: 'Пользователь',
+                        rating: 1500
+                    };
+                    console.log('🧪 Fallback пользователь:', finalUser);
+                }
+            }
+            
+            // ШАГ 4: Сохраняем в localStorage для следующих сессий
+            try {
+                localStorage.setItem(localStorageKey, JSON.stringify(finalUser));
+                console.log('💾 Пользователь сохранен в localStorage');
+            } catch (e) {
+                console.log('⚠️ Не удалось сохранить в localStorage:', e);
+            }
+            
+            // УСТАНАВЛИВАЕМ ГЛОБАЛЬНОГО ПОЛЬЗОВАТЕЛЯ
+            currentUser = finalUser;
+            console.log('🎯 ФИНАЛЬНЫЙ ПОЛЬЗОВАТЕЛЬ УСТАНОВЛЕН:', currentUser);
+            console.log(`👤 ${currentUser.first_name} ${currentUser.last_name} (ID: ${currentUser.telegram_id})`);
+        }
+        
+        // Функция для обновления данных пользователя в базе
+        async function updateUserInDatabase(userData) {
+            try {
+                console.log('📝 Обновляем пользователя в базе данных:', userData);
+                const response = await fetch(`${API_BASE_URL}/players/${userData.telegram_id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        first_name: userData.first_name,
+                        last_name: userData.last_name
+                    })
+                });
+                
+                if (response.ok) {
+                    const updated = await response.json();
+                    console.log('✅ Пользователь обновлен в базе:', updated);
+                    return updated;
+                } else {
+                    console.log('❌ Не удалось обновить пользователя в базе');
+                    return null;
+                }
+            } catch (error) {
+                console.log('❌ Ошибка обновления в базе:', error);
+                return null;
+            }
+        }
+        
+        // Функция для принудительного обновления имени пользователя
+        async function forceUpdateUserName(firstName, lastName) {
+            if (!currentUser) {
+                console.log('❌ Нет текущего пользователя для обновления');
+                return false;
+            }
+            
+            console.log(`🔄 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ: ${firstName} ${lastName}`);
+            
+            // Обновляем локально
+            currentUser.first_name = firstName;
+            currentUser.last_name = lastName;
+            
+            // Сохраняем в localStorage
+            const localStorageKey = `badminton_user_${currentUser.telegram_id}`;
+            try {
+                localStorage.setItem(localStorageKey, JSON.stringify(currentUser));
+                console.log('💾 Имя обновлено в localStorage');
+            } catch (e) {
+                console.log('⚠️ Не удалось сохранить в localStorage');
+            }
+            
+            // Обновляем в базе данных
+            await updateUserInDatabase(currentUser);
+            
+            console.log('✅ Имя пользователя обновлено везде:', currentUser);
+            return true;
         }
 
         const fallbackData = {
@@ -475,9 +601,10 @@
             }
             
             setupEventListeners();
+            updateUserDisplay(); // Отображаем информацию о пользователе
             showMainMenu();
             
-            console.log('🎯 ФИНАЛЬНАЯ ПРОВЕРКА currentUser:', currentUser);
+            console.log('🎯 ПРИЛОЖЕНИЕ ПОЛНОСТЬЮ ГОТОВО!');
         });
 
         function setupEventListeners() {
@@ -506,6 +633,12 @@
                 });
             } else {
                 console.error('❌ Кнопка create-game-btn не найдена!');
+            }
+            
+            // Кнопка обновления имени
+            const updateNameBtn = document.getElementById('update-name-btn');
+            if (updateNameBtn) {
+                updateNameBtn.addEventListener('click', handleUpdateName);
             }
 
             // Back buttons
@@ -540,7 +673,49 @@
                     return;
                 }
             }
+            updateUserDisplay(); // Обновляем отображение пользователя
             showSection('main-menu');
+        }
+        
+        // Обновление отображения информации о пользователе
+        function updateUserDisplay() {
+            if (!currentUser) return;
+            
+            const nameElement = document.getElementById('current-user-name');
+            const idElement = document.getElementById('current-user-id');
+            
+            if (nameElement) {
+                nameElement.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+            }
+            if (idElement) {
+                idElement.textContent = `ID: ${currentUser.telegram_id}`;
+            }
+            
+            console.log('🔄 Отображение пользователя обновлено');
+        }
+        
+        // Обработчик обновления имени
+        async function handleUpdateName() {
+            console.log('🔄 Обработка обновления имени...');
+            
+            const firstName = prompt('Введите имя:', currentUser?.first_name || '');
+            if (!firstName) return;
+            
+            const lastName = prompt('Введите фамилию:', currentUser?.last_name || '');
+            if (!lastName) return;
+            
+            const success = await forceUpdateUserName(firstName, lastName);
+            if (success) {
+                updateUserDisplay();
+                showMessage('✅ Имя успешно обновлено!', 'success');
+                
+                // Если есть открытая комната, обновляем её отображение
+                if (currentRoom) {
+                    showRoomDetails(currentRoom.id);
+                }
+            } else {
+                showMessage('❌ Не удалось обновить имя', 'error');
+            }
         }
 
         function showSearchGames() {
