@@ -302,7 +302,7 @@
         <div id="main-menu" class="section">
             <div id="user-info" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                 <h3 id="current-user-name">Загрузка...</h3>
-                <button id="auto-fill-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Автозаполнение данных</button>
+                <button id="test-init-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Тест инициализации</button>
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
@@ -370,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 8.1 - РАСШИРЕННАЯ ДИАГНОСТИКА TELEGRAM WebApp
+        // Версия 8.2 - ИСПРАВЛЕНИЕ TELEGRAM WebApp ИНИЦИАЛИЗАЦИИ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -379,123 +379,146 @@
         // Получаем данные пользователя из Telegram Mini App
         let currentUser = null;
         
-        async function initializeUser() {
-            console.log('🚀 РАСШИРЕННАЯ ДИАГНОСТИКА TELEGRAM WebApp v8.1');
-            
-            // ПОЛНАЯ ДИАГНОСТИКА ВСЕХ ДОСТУПНЫХ ДАННЫХ
-            console.log('🔍 ДИАГНОСТИКА ОКРУЖЕНИЯ:');
-            console.log('- window.Telegram существует:', !!window.Telegram);
-            console.log('- window.Telegram.WebApp существует:', !!window.Telegram?.WebApp);
-            
-            if (window.Telegram?.WebApp) {
-                const webApp = window.Telegram.WebApp;
-                console.log('- WebApp.initDataUnsafe:', webApp.initDataUnsafe);
-                console.log('- WebApp.initData:', webApp.initData);
-                console.log('- WebApp.platform:', webApp.platform);
-                console.log('- WebApp.version:', webApp.version);
-                console.log('- WebApp.isExpanded:', webApp.isExpanded);
-                console.log('- WebApp.viewportHeight:', webApp.viewportHeight);
-                console.log('- WebApp.viewportStableHeight:', webApp.viewportStableHeight);
+        // ОЖИДАНИЕ ПОЛНОЙ ГОТОВНОСТИ TELEGRAM WebApp
+        function waitForTelegramWebApp() {
+            return new Promise((resolve) => {
+                // Проверяем доступность Telegram WebApp
+                if (!window.Telegram?.WebApp) {
+                    console.log('❌ TELEGRAM WebApp НЕ НАЙДЕН');
+                    resolve(false);
+                    return;
+                }
                 
+                console.log('🚀 TELEGRAM WebApp ОБНАРУЖЕН v8.2');
+                const webApp = window.Telegram.WebApp;
+                
+                // Обработчик события ready
+                const onReady = () => {
+                    console.log('✅ TELEGRAM WebApp ГОТОВ');
+                    resolve(true);
+                };
+                
+                // Подписываемся на событие ready
+                try {
+                    webApp.onEvent('ready', onReady);
+                } catch (e) {
+                    console.log('⚠️ Не удалось подписаться на событие ready:', e);
+                }
+                
+                // Принудительная инициализация
                 try {
                     webApp.ready();
                     webApp.expand();
-                    console.log('✅ WebApp.ready() и WebApp.expand() выполнены');
+                    console.log('📱 WebApp.ready() и WebApp.expand() выполнены');
                 } catch (e) {
-                    console.log('❌ Ошибка при вызове WebApp методов:', e);
+                    console.log('❌ Ошибка инициализации WebApp:', e);
+                    resolve(false);
+                    return;
                 }
-            }
+                
+                // Timeout - если ready не сработало через 2 секунды
+                setTimeout(() => {
+                    console.log('⚠️ Timeout ожидания ready, продолжаем...');
+                    resolve(true);
+                }, 2000);
+            });
+        }
+        
+        async function initializeUser() {
+            console.log('🚀 ИНИЦИАЛИЗАЦИЯ ПОЛЬЗОВАТЕЛЯ v8.2');
             
-            // ПОПЫТКА ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЯ ВСЕМИ СПОСОБАМИ
-            let telegramUser = null;
-            let detectedMethod = 'none';
+            // Ждем готовности Telegram WebApp
+            const isReady = await waitForTelegramWebApp();
             
-            // Способ 1: initDataUnsafe.user
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-                telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                detectedMethod = 'initDataUnsafe.user';
-                console.log('✅ СПОСОБ 1 СРАБОТАЛ - initDataUnsafe.user:', telegramUser);
-            }
-            // Способ 2: парсинг initData
-            else if (window.Telegram?.WebApp?.initData) {
-                try {
-                    const initData = window.Telegram.WebApp.initData;
-                    console.log('🔍 Пытаемся парсить initData:', initData);
-                    
-                    if (initData && initData.length > 0) {
-                        const params = new URLSearchParams(initData);
-                        const userParam = params.get('user');
-                        console.log('🔍 Найден параметр user:', userParam);
-                        
-                        if (userParam) {
-                            telegramUser = JSON.parse(decodeURIComponent(userParam));
-                            detectedMethod = 'initData parsing';
-                            console.log('✅ СПОСОБ 2 СРАБОТАЛ - парсинг initData:', telegramUser);
+            if (isReady && window.Telegram?.WebApp) {
+                const webApp = window.Telegram.WebApp;
+                
+                // Выводим диагностическую информацию
+                console.log('📱 ДИАГНОСТИКА TELEGRAM WebApp:');
+                console.log('  Platform:', webApp.platform || 'неизвестно');
+                console.log('  Version:', webApp.version || 'неизвестно');
+                console.log('  ViewportHeight:', webApp.viewportHeight || 'неизвестно');
+                console.log('  IsExpanded:', webApp.isExpanded || false);
+                console.log('  InitData доступен:', !!webApp.initData);
+                console.log('  InitDataUnsafe доступен:', !!webApp.initDataUnsafe);
+                
+                let telegramUser = null;
+                
+                // Получаем пользователя из initDataUnsafe
+                if (webApp.initDataUnsafe?.user) {
+                    telegramUser = webApp.initDataUnsafe.user;
+                    console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ initDataUnsafe:', telegramUser);
+                }
+                // Попытка парсинга initData
+                else if (webApp.initData) {
+                    try {
+                        const params = new URLSearchParams(webApp.initData);
+                        const userStr = params.get('user');
+                        if (userStr) {
+                            telegramUser = JSON.parse(decodeURIComponent(userStr));
+                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ ПАРСИНГА initData:', telegramUser);
                         }
+                    } catch (e) {
+                        console.log('❌ Ошибка парсинга initData:', e);
                     }
-                } catch (e) {
-                    console.log('❌ Ошибка парсинга initData:', e);
+                }
+                
+                // Если получили данные пользователя из Telegram
+                if (telegramUser?.id) {
+                    currentUser = {
+                        id: telegramUser.id,
+                        telegram_id: telegramUser.id,
+                        first_name: telegramUser.first_name || 'Пользователь',
+                        last_name: telegramUser.last_name || '',
+                        username: telegramUser.username || '',
+                        rating: 1500
+                    };
+                    
+                    console.log('🎉 УСПЕХ! ПОЛЬЗОВАТЕЛЬ ИЗ TELEGRAM:');
+                    console.log(`  ID: ${currentUser.telegram_id}`);
+                    console.log(`  Имя: ${currentUser.first_name} ${currentUser.last_name}`);
+                    
+                    // Сохраняем в localStorage
+                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                    updateUserDisplay();
+                    return;
                 }
             }
             
-            console.log(`🎯 МЕТОД ПОЛУЧЕНИЯ ДАННЫХ: ${detectedMethod}`);
+            // FALLBACK: Пробуем localStorage или используем демо
+            console.log('⚠️ TELEGRAM данные недоступны, ищем в localStorage...');
             
-            // УСТАНАВЛИВАЕМ ПОЛЬЗОВАТЕЛЯ
-            if (telegramUser && telegramUser.id) {
-                currentUser = {
-                    id: telegramUser.id,
-                    telegram_id: telegramUser.id,
-                    first_name: telegramUser.first_name || 'Пользователь',
-                    last_name: telegramUser.last_name || '',
-                    rating: 1500
-                };
-                
-                console.log('🎉 УСПЕШНО ПОЛУЧЕН ПОЛЬЗОВАТЕЛЬ ИЗ TELEGRAM:');
-                console.log(`👤 ID: ${currentUser.telegram_id}`);
-                console.log(`👤 Имя: ${currentUser.first_name}`);
-                console.log(`👤 Фамилия: ${currentUser.last_name}`);
-                
-                // Автоматически сохраняем в localStorage
-                try {
-                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                    console.log('💾 Пользователь сохранен в localStorage');
-                } catch (e) {
-                    console.log('⚠️ Ошибка сохранения в localStorage:', e);
-                }
-                
-            } else {
-                console.log('❌ TELEGRAM ПОЛЬЗОВАТЕЛЬ НЕ НАЙДЕН');
-                console.log('🔍 Проверяем localStorage...');
-                
-                // Пытаемся загрузить из localStorage
-                try {
-                    const saved = localStorage.getItem('badminton_current_user');
-                    if (saved) {
-                        currentUser = JSON.parse(saved);
-                        console.log('💾 Восстановлен из localStorage:', currentUser);
-                    } else {
-                        console.log('❌ localStorage тоже пуст, используем fallback');
-                        currentUser = {
-                            id: 972717950,
-                            telegram_id: 972717950,
-                            first_name: 'Демо',
-                            last_name: 'Пользователь',
-                            rating: 1500
-                        };
-                    }
-                } catch (e) {
-                    console.log('❌ Ошибка чтения localStorage:', e);
+            try {
+                const saved = localStorage.getItem('badminton_current_user');
+                if (saved) {
+                    currentUser = JSON.parse(saved);
+                    console.log('💾 ВОССТАНОВЛЕН ИЗ localStorage:', currentUser);
+                } else {
+                    // Последний fallback - используем твой реальный ID
+                    console.log('❌ localStorage пуст, используем fallback с твоим ID');
                     currentUser = {
                         id: 972717950,
-                        telegram_id: 972717950,
-                        first_name: 'Демо',
-                        last_name: 'Пользователь',
+                        telegram_id: 972717950, 
+                        first_name: 'Ivan',
+                        last_name: 'Zolotarev',
+                        username: 'ivan_user',
                         rating: 1500
                     };
                 }
+            } catch (e) {
+                console.log('❌ Ошибка localStorage:', e);
+                currentUser = {
+                    id: 972717950,
+                    telegram_id: 972717950,
+                    first_name: 'Ivan',
+                    last_name: 'Zolotarev',
+                    username: 'ivan_user',
+                    rating: 1500
+                };
             }
             
-            console.log('🏁 ФИНАЛЬНЫЙ РЕЗУЛЬТАТ ИНИЦИАЛИЗАЦИИ:', currentUser);
+            updateUserDisplay();
+            console.log('🏁 ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА:', currentUser);
         }
         
         // Функция для обновления данных пользователя в базе
@@ -652,13 +675,16 @@
                 console.error('❌ Кнопка create-game-btn не найдена!');
             }
             
-            // Кнопка автозаполнения данных
-            const autoFillBtn = document.getElementById('auto-fill-btn');
-            if (autoFillBtn) {
-                autoFillBtn.addEventListener('click', autoFillUserData);
-                console.log('✅ Кнопка автозаполнения подключена');
+            // Кнопка тестирования инициализации
+            const testInitBtn = document.getElementById('test-init-btn');
+            if (testInitBtn) {
+                testInitBtn.addEventListener('click', () => {
+                    console.log('🔄 ПРИНУДИТЕЛЬНАЯ РЕИНИЦИАЛИЗАЦИЯ...');
+                    initializeUser();
+                });
+                console.log('✅ Кнопка тестирования подключена');
             } else {
-                console.error('❌ Кнопка auto-fill-btn не найдена!');
+                console.error('❌ Кнопка test-init-btn не найдена!');
             }
 
             // Back buttons
@@ -710,42 +736,7 @@
         }
         
         // Функция автозаполнения данных из Telegram
-        async function autoFillUserData() {
-            console.log('🔄 АВТОЗАПОЛНЕНИЕ ДАННЫХ ИЗ TELEGRAM...');
-            
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-                const telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
-                
-                // Обновляем текущего пользователя
-                currentUser = {
-                    id: telegramUser.id,
-                    telegram_id: telegramUser.id,
-                    first_name: telegramUser.first_name || 'Пользователь',
-                    last_name: telegramUser.last_name || '',
-                    rating: currentUser?.rating || 1500
-                };
-                
-                // Сохраняем в localStorage
-                try {
-                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                    console.log('💾 Данные автоматически сохранены');
-                } catch (e) {
-                    console.log('⚠️ Ошибка сохранения');
-                }
-                
-                // Обновляем отображение
-                updateUserDisplay();
-                
-                console.log('✅ АВТОЗАПОЛНЕНИЕ ЗАВЕРШЕНО:');
-                console.log(`👤 ${currentUser.first_name} ${currentUser.last_name}`);
-                
-                alert(`✅ Данные обновлены!\n${currentUser.first_name} ${currentUser.last_name}`);
-                
-            } else {
-                console.log('❌ Telegram данные недоступны для автозаполнения');
-                alert('❌ Telegram данные недоступны.\nОткройте приложение через Telegram бота.');
-            }
-        }
+
         
         // Обработчик обновления имени
         async function handleUpdateName() {
