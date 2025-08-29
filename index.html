@@ -370,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 8.4 - МНОЖЕСТВЕННЫЕ СПОСОБЫ ПОЛУЧЕНИЯ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+        // Версия 8.5 - АГРЕССИВНОЕ ПОЛУЧЕНИЕ ДАННЫХ ИЗ TELEGRAM
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -483,23 +483,84 @@
                 
                 let telegramUser = null;
                 
-                // Получаем пользователя из initDataUnsafe
+                // АГРЕССИВНЫЙ ПОИСК ДАННЫХ ПОЛЬЗОВАТЕЛЯ - НЕСКОЛЬКО СПОСОБОВ
+                console.log('🔍 АГРЕССИВНЫЙ ПОИСК ДАННЫХ ПОЛЬЗОВАТЕЛЯ...');
+                
+                // Способ 1: initDataUnsafe.user (стандартный)
                 if (webApp.initDataUnsafe?.user) {
                     telegramUser = webApp.initDataUnsafe.user;
-                    console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ initDataUnsafe:', telegramUser);
+                    console.log('✅ СПОСОБ 1 - initDataUnsafe.user:', telegramUser);
                 }
-                // Попытка парсинга initData
-                else if (webApp.initData) {
+                
+                // Способ 2: Парсинг initData
+                if (!telegramUser && webApp.initData) {
                     try {
+                        console.log('🔄 СПОСОБ 2 - парсинг initData...');
                         const params = new URLSearchParams(webApp.initData);
                         const userStr = params.get('user');
                         if (userStr) {
                             telegramUser = JSON.parse(decodeURIComponent(userStr));
-                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ ПАРСИНГА initData:', telegramUser);
+                            console.log('✅ СПОСОБ 2 - парсинг успешен:', telegramUser);
                         }
                     } catch (e) {
-                        console.log('❌ Ошибка парсинга initData:', e);
+                        console.log('❌ СПОСОБ 2 - ошибка парсинга:', e);
                     }
+                }
+                
+                // Способ 3: Попытка получить через window.TelegramWebviewProxy (iOS)
+                if (!telegramUser && window.TelegramWebviewProxy) {
+                    try {
+                        console.log('🔄 СПОСОБ 3 - TelegramWebviewProxy...');
+                        const proxyData = window.TelegramWebviewProxy.getData();
+                        if (proxyData && proxyData.user) {
+                            telegramUser = proxyData.user;
+                            console.log('✅ СПОСОБ 3 - TelegramWebviewProxy:', telegramUser);
+                        }
+                    } catch (e) {
+                        console.log('❌ СПОСОБ 3 - ошибка TelegramWebviewProxy:', e);
+                    }
+                }
+                
+                // Способ 4: Проверка всех возможных объектов Telegram
+                if (!telegramUser) {
+                    console.log('🔄 СПОСОБ 4 - поиск в альтернативных объектах...');
+                    
+                    // Проверяем разные варианты доступа к данным
+                    const possiblePaths = [
+                        'window.Telegram.WebApp.initDataUnsafe.user',
+                        'window.TelegramGameProxy.initDataUnsafe.user', 
+                        'window.parent.Telegram.WebApp.initDataUnsafe.user',
+                        'window.top.Telegram.WebApp.initDataUnsafe.user'
+                    ];
+                    
+                    for (const path of possiblePaths) {
+                        try {
+                            const user = eval(path);
+                            if (user && user.id) {
+                                telegramUser = user;
+                                console.log(`✅ СПОСОБ 4 - найден через ${path}:`, telegramUser);
+                                break;
+                            }
+                        } catch (e) {
+                            // Игнорируем ошибки eval
+                        }
+                    }
+                }
+                
+                // Способ 5: Последняя попытка через событие
+                if (!telegramUser) {
+                    console.log('🔄 СПОСОБ 5 - через события и таймеры...');
+                    
+                    // Попытка получить данные через небольшую задержку
+                    await new Promise(resolve => {
+                        setTimeout(() => {
+                            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+                                telegramUser = window.Telegram.WebApp.initDataUnsafe.user;
+                                console.log('✅ СПОСОБ 5 - задержка помогла:', telegramUser);
+                            }
+                            resolve();
+                        }, 1000);
+                    });
                 }
                 
                 // Если получили данные пользователя из Telegram
