@@ -302,7 +302,7 @@
         <div id="main-menu" class="section">
             <div id="user-info" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                 <h3 id="current-user-name">Загрузка...</h3>
-                <button id="test-init-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">🔄 Тест инициализации</button>
+                <button id="enter-name-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">✏️ Ввести имя</button>
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
@@ -370,7 +370,7 @@
     </div>
 
     <script>
-        // Версия 8.5 - АГРЕССИВНОЕ ПОЛУЧЕНИЕ ДАННЫХ ИЗ TELEGRAM
+        // Версия 8.6 - РУЧНОЙ ВВОД ИМЕНИ ПОЛЬЗОВАТЕЛЯ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -831,16 +831,16 @@
                 console.error('❌ Кнопка create-game-btn не найдена!');
             }
             
-            // Кнопка тестирования инициализации
-            const testInitBtn = document.getElementById('test-init-btn');
-            if (testInitBtn) {
-                testInitBtn.addEventListener('click', () => {
-                    console.log('🔄 ПРИНУДИТЕЛЬНАЯ РЕИНИЦИАЛИЗАЦИЯ...');
-                    initializeUser();
+            // Кнопка ввода имени
+            const enterNameBtn = document.getElementById('enter-name-btn');
+            if (enterNameBtn) {
+                enterNameBtn.addEventListener('click', () => {
+                    console.log('✏️ ВВОД ИМЕНИ ПОЛЬЗОВАТЕЛЯ...');
+                    enterUserName();
                 });
-                console.log('✅ Кнопка тестирования подключена');
+                console.log('✅ Кнопка ввода имени подключена');
             } else {
-                console.error('❌ Кнопка test-init-btn не найдена!');
+                console.error('❌ Кнопка enter-name-btn не найдена!');
             }
 
             // Back buttons
@@ -879,13 +879,52 @@
             showSection('main-menu');
         }
         
+        // Ввод имени пользователя
+        async function enterUserName() {
+            console.log('✏️ ЗАПРОС ИМЕНИ У ПОЛЬЗОВАТЕЛЯ...');
+            
+            const firstName = prompt('Введите ваше имя:', currentUser?.first_name || '');
+            if (!firstName || firstName.trim() === '') {
+                console.log('❌ Имя не введено');
+                return;
+            }
+            
+            const lastName = prompt('Введите вашу фамилию (необязательно):', currentUser?.last_name || '');
+            
+            // Создаем нового пользователя с введенными данными
+            currentUser = {
+                id: currentUser?.id || Date.now(),
+                telegram_id: currentUser?.telegram_id || Date.now(),
+                first_name: firstName.trim(),
+                last_name: lastName ? lastName.trim() : '',
+                username: currentUser?.username || '',
+                rating: currentUser?.rating || 1500
+            };
+            
+            // Сохраняем в localStorage
+            try {
+                localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                console.log('💾 Имя сохранено в localStorage:', currentUser);
+            } catch (e) {
+                console.log('❌ Ошибка сохранения:', e);
+            }
+            
+            // Обновляем отображение
+            updateUserDisplay();
+            
+            alert(`✅ Ваше имя сохранено!\n${currentUser.first_name} ${currentUser.last_name}`);
+            
+            console.log('🎉 ИМЕНА ПОЛЬЗОВАТЕЛЯ УСПЕШНО ОБНОВЛЕНЫ:', currentUser);
+        }
+        
         // Автоматическое обновление отображения имени пользователя
         function updateUserDisplay() {
             if (!currentUser) return;
             
             const nameElement = document.getElementById('current-user-name');
             if (nameElement) {
-                nameElement.textContent = `${currentUser.first_name} ${currentUser.last_name}`;
+                const displayName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+                nameElement.textContent = displayName || 'Пользователь';
             }
             
             console.log('✅ Имя пользователя автоматически обновлено');
