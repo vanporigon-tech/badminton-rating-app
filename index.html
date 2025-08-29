@@ -366,7 +366,7 @@
     </div>
 
     <script>
-        // Версия 5.0 - ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША + TELEGRAM ИНТЕГРАЦИЯ
+        // Версия 6.0 - TELEGRAM ИНТЕГРАЦИЯ С СИНХРОНИЗАЦИЕЙ ИМЕН
         const API_BASE_URL = 'http://localhost:8000';
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -425,24 +425,22 @@
                     const dbResponse = await fetch(`${API_BASE_URL}/players/972717950`);
                     if (dbResponse.ok) {
                         const dbUser = await dbResponse.json();
-                        telegramUser = {
-                            id: dbUser.telegram_id,
+                        // ИСПОЛЬЗУЕМ ТОЛЬКО ДАННЫЕ ИЗ БАЗЫ (авторитетный источник)
+                        currentUser = {
+                            id: dbUser.id,
+                            telegram_id: dbUser.telegram_id,
                             first_name: dbUser.first_name,
-                            last_name: dbUser.last_name,
-                            username: 'ivanzo'
+                            last_name: dbUser.last_name
                         };
-                        console.log('✅ ДАННЫЕ ИЗ БАЗЫ SQLite:', telegramUser);
+                        console.log('✅ ПОЛЬЗОВАТЕЛЬ ИЗ БАЗЫ SQLite:', currentUser);
+                        return true; // Заканчиваем инициализацию
                     } else {
                         throw new Error('Пользователь не найден в базе');
                     }
                 } catch (error) {
-                    console.log('⚠️ Не удалось получить из базы, используем дефолтные');
-                    telegramUser = {
-                        id: 972717950,
-                        first_name: 'Иван',
-                        last_name: 'Золотарев',
-                        username: 'ivanzo'
-                    };
+                    console.log('⚠️ Не удалось получить из базы, показываем ошибку');
+                    showError("❌ Ошибка подключения к базе данных. Запустите приложение из Telegram бота.");
+                    return false;
                 }
                 console.log('🧪 ТЕСТОВЫЙ пользователь создан:', telegramUser);
             }
@@ -456,57 +454,14 @@
                     if (response.ok) {
                         const dbUser = await response.json();
                         
-                        // ПРОВЕРЯЕМ И ОБНОВЛЯЕМ ИМЕНА ЕСЛИ ОНИ ИЗМЕНИЛИСЬ
-                        if (dbUser.first_name !== telegramUser.first_name || dbUser.last_name !== telegramUser.last_name) {
-                            console.log('🔄 ОБНОВЛЯЕМ имена пользователя в базе...');
-                            console.log('Старые:', dbUser.first_name, dbUser.last_name);
-                            console.log('Новые:', telegramUser.first_name, telegramUser.last_name);
-                            
-                            try {
-                                const updateResponse = await fetch(`${API_BASE_URL}/players/${telegramUser.id}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        first_name: telegramUser.first_name || dbUser.first_name,
-                                        last_name: telegramUser.last_name || dbUser.last_name
-                                    })
-                                });
-                                
-                                if (updateResponse.ok) {
-                                    const updatedUser = await updateResponse.json();
-                                    console.log('✅ ИМЕНА ОБНОВЛЕНЫ в базе:', updatedUser);
-                                    currentUser = {
-                                        id: updatedUser.id,
-                                        telegram_id: updatedUser.telegram_id,
-                                        first_name: updatedUser.first_name,
-                                        last_name: updatedUser.last_name
-                                    };
-                                } else {
-                                    console.log('⚠️ Не удалось обновить имена, используем новые из Telegram');
-                                    currentUser = {
-                                        id: dbUser.id,
-                                        telegram_id: dbUser.telegram_id,
-                                        first_name: telegramUser.first_name || dbUser.first_name,
-                                        last_name: telegramUser.last_name || dbUser.last_name
-                                    };
-                                }
-                            } catch (updateError) {
-                                console.log('⚠️ Ошибка обновления имен, используем новые из Telegram');
-                                currentUser = {
-                                    id: dbUser.id,
-                                    telegram_id: dbUser.telegram_id,
-                                    first_name: telegramUser.first_name || dbUser.first_name,
-                                    last_name: telegramUser.last_name || dbUser.last_name
-                                };
-                            }
-                        } else {
-                            currentUser = {
-                                id: dbUser.id,
-                                telegram_id: dbUser.telegram_id,
-                                first_name: dbUser.first_name,
-                                last_name: dbUser.last_name
-                            };
-                        }
+                        // ВСЕГДА ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ БАЗЫ (база - авторитетный источник)
+                        console.log('✅ ПОЛЬЗОВАТЕЛЬ НАЙДЕН в базе:', dbUser);
+                        currentUser = {
+                            id: dbUser.id,
+                            telegram_id: dbUser.telegram_id,
+                            first_name: dbUser.first_name,
+                            last_name: dbUser.last_name
+                        };
                         console.log('✅ ФИНАЛЬНЫЕ данные пользователя:', currentUser);
                     } else {
                         console.log('💾 СОЗДАЕМ нового пользователя в базе...');
