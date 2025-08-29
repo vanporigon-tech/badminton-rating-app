@@ -366,7 +366,7 @@
     </div>
 
     <script>
-        // Версия 6.0 - TELEGRAM ИНТЕГРАЦИЯ С СИНХРОНИЗАЦИЕЙ ИМЕН
+        // Версия 6.1 - ИСПРАВЛЕНИЕ КНОПОК + ОТЛАДКА
         const API_BASE_URL = 'http://localhost:8000';
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -574,12 +574,37 @@
             
             setupEventListeners();
             showMainMenu();
+            
+            console.log('🎯 ФИНАЛЬНАЯ ПРОВЕРКА currentUser:', currentUser);
         });
 
         function setupEventListeners() {
+            console.log('🔧 Настройка обработчиков событий...');
+            
             // Main menu buttons
-            document.getElementById('search-game-btn').addEventListener('click', showSearchGames);
-            document.getElementById('create-game-btn').addEventListener('click', handleCreateRoom);
+            const searchBtn = document.getElementById('search-game-btn');
+            const createBtn = document.getElementById('create-game-btn');
+            
+            console.log('🔍 Кнопка поиска найдена:', !!searchBtn);
+            console.log('➕ Кнопка создания найдена:', !!createBtn);
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', function() {
+                    console.log('🔍 Кнопка "Искать игру" нажата');
+                    showSearchGames();
+                });
+            } else {
+                console.error('❌ Кнопка search-game-btn не найдена!');
+            }
+            
+            if (createBtn) {
+                createBtn.addEventListener('click', function() {
+                    console.log('➕ Кнопка "Создать игру" нажата');
+                    handleCreateRoom();
+                });
+            } else {
+                console.error('❌ Кнопка create-game-btn не найдена!');
+            }
 
             // Back buttons
             document.getElementById('back-to-main-1').addEventListener('click', showMainMenu);
@@ -617,6 +642,10 @@
         }
 
         function showSearchGames() {
+            console.log('🔍 ВЫПОЛНЯЕТСЯ showSearchGames()');
+            console.log('👤 currentUser:', currentUser);
+            console.log('🏠 currentRoom:', currentRoom);
+            
             if (currentRoom) {
                 const confirmed = confirm('Вы уверены что хотите выйти из этой комнаты?');
                 if (confirmed) {
@@ -625,6 +654,7 @@
                     return;
                 }
             }
+            console.log('📄 Показываем секцию search-games');
             showSection('search-games');
             loadRooms();
         }
@@ -651,7 +681,11 @@
         }
 
         async function handleCreateRoom() {
+            console.log('➕ ВЫПОЛНЯЕТСЯ handleCreateRoom()');
+            console.log('👤 currentUser:', currentUser);
+            
             if (!currentUser) {
+                console.log('❌ ОШИБКА: пользователь не инициализирован!');
                 showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
             }
