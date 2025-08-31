@@ -372,8 +372,10 @@
     </div>
 
     <script>
-        // Версия 8.10 - УДАЛЕНЫ ТЕСТОВЫЕ КОМНАТЫ
-        const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
+        // Версия 8.11 - ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ДЛЯ GITHUB PAGES
+        // Определяем URL API в зависимости от окружения
+        const isGitHubPages = window.location.hostname === 'vanporigon-tech.github.io';
+        const API_BASE_URL = isGitHubPages ? null : 'http://localhost:8000';
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
         const cacheVersion = '?v=' + Date.now();
@@ -735,6 +737,34 @@
             return true;
         }
 
+        // ФУНКЦИИ ДЛЯ РАБОТЫ С ЛОКАЛЬНЫМИ КОМНАТАМИ
+        function saveRoomToLocalStorage(room) {
+            try {
+                const existingRooms = getLocalRooms();
+                const updatedRooms = existingRooms.filter(r => r.id !== room.id);
+                updatedRooms.push(room);
+                localStorage.setItem('badminton_local_rooms', JSON.stringify(updatedRooms));
+                console.log('💾 Комната сохранена в localStorage:', room);
+            } catch (e) {
+                console.error('❌ Ошибка сохранения комнаты:', e);
+            }
+        }
+        
+        function getLocalRooms() {
+            try {
+                const rooms = localStorage.getItem('badminton_local_rooms');
+                return rooms ? JSON.parse(rooms) : [];
+            } catch (e) {
+                console.error('❌ Ошибка загрузки комнат:', e);
+                return [];
+            }
+        }
+        
+        function getLocalRoomById(roomId) {
+            const rooms = getLocalRooms();
+            return rooms.find(room => room.id === roomId);
+        }
+
         const fallbackData = {
             availableRooms: [],
             roomMembers: [
@@ -997,6 +1027,12 @@
             const roomsList = document.getElementById('rooms-list');
             
             try {
+                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
+                if (!API_BASE_URL) {
+                    console.log('📱 GitHub Pages режим - API недоступен, показываем пустой список');
+                    throw new Error('API недоступен на GitHub Pages');
+                }
+                
                 // ПОЛУЧАЕМ КОМНАТЫ ИЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/`);
                 
@@ -1025,22 +1061,22 @@
             } catch (error) {
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТ:', error);
                 
-                // FALLBACK: показываем тестовые комнаты
-                setTimeout(() => {
-                    if (fallbackData.availableRooms.length === 0) {
-                        roomsList.innerHTML = '<p>Нет доступных комнат (API недоступен)</p>';
-                        return;
-                    }
+                                // FALLBACK: показываем локальные комнаты
+                const localRooms = getLocalRooms();
+                
+                if (localRooms.length === 0) {
+                    roomsList.innerHTML = '<p>Нет доступных комнат<br><small>Создайте комнату, чтобы она появилась здесь!</small></p>';
+                    return;
+                }
 
-                    const roomsHtml = fallbackData.availableRooms.map(room => `
+                const roomsHtml = localRooms.map(room => `
                     <div class="room-item" onclick="showRoomDetails(${room.id})">
                         <div class="room-name">${room.name}</div>
-                        <div class="room-info">Участников: ${room.member_count}/4</div>
+                        <div class="room-info">Участников: ${room.member_count || 1}/4</div>
                     </div>
                 `).join('');
 
                 roomsList.innerHTML = roomsHtml;
-            }, 500);
             }
         }
 
@@ -1059,6 +1095,12 @@
             console.log('📝 СОЗДАЕМ КОМНАТУ:', roomName);
             
             try {
+                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
+                if (!API_BASE_URL) {
+                    console.log('📱 GitHub Pages режим - API недоступен, создаем локально');
+                    throw new Error('API недоступен на GitHub Pages');
+                }
+                
                 // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/`, {
                     method: 'POST',
@@ -1112,7 +1154,7 @@
                 const newRoom = {
                     id: Date.now(),
                     name: roomName,
-                    creator_id: currentUser.id,
+                    creator_id: currentUser.telegram_id || currentUser.id,
                     creator_full_name: roomName,
                     member_count: 1,
                     members: [{
@@ -1125,9 +1167,12 @@
                     }]
                 };
                 
+                // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
+                saveRoomToLocalStorage(newRoom);
+                
                 currentRoom = newRoom;
                 console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
-                showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+                showMessage(`✅ Комната "${roomName}" создана локально!`, 'success');
                 showRoomDetails(newRoom.id);
             }
         }
@@ -1141,6 +1186,12 @@
             }
             
             try {
+                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
+                if (!API_BASE_URL) {
+                    console.log('📱 GitHub Pages режим - API недоступен, используем локальные данные');
+                    throw new Error('API недоступен на GitHub Pages');
+                }
+                
                 // ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ ИЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
                 
@@ -1192,20 +1243,23 @@
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТЫ:', error);
                 
                 // FALLBACK: используем локальные данные если API не работает
-                if (!currentRoom || currentRoom.id !== roomId) {
+                const localRoom = getLocalRoomById(roomId);
+                if (!localRoom && (!currentRoom || currentRoom.id !== roomId)) {
                     console.log('❌ Комната не найдена локально');
                     showMessage('Комната не найдена', 'error');
                     return;
                 }
                 
+                const room = localRoom || currentRoom;
+                
                 const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
                 
                 // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
-                document.getElementById('room-leader-name').textContent = userName;
-                document.getElementById('member-count').textContent = '1';
+                document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
+                document.getElementById('member-count').textContent = room.member_count || '1';
                 
-                // ПОКАЗЫВАЕМ УЧАСТНИКОВ (только создатель)
-                const members = [{
+                // ПОКАЗЫВАЕМ УЧАСТНИКОВ
+                const members = room.members || [{
                     player_id: currentUser.id,
                     is_leader: true,
                     name: userName,
@@ -1214,9 +1268,15 @@
                 
                 displayMembersList(members);
                 
-                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА
-                document.getElementById('leader-controls').classList.remove('hidden');
-                document.getElementById('join-controls').classList.add('hidden');
+                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА ЕСЛИ ЭТО ВАШ СОЗДАТЕЛЬ
+                const isCreator = room.creator_id === (currentUser.telegram_id || currentUser.id);
+                if (isCreator) {
+                    document.getElementById('leader-controls').classList.remove('hidden');
+                    document.getElementById('join-controls').classList.add('hidden');
+                } else {
+                    document.getElementById('leader-controls').classList.add('hidden');
+                    document.getElementById('join-controls').classList.remove('hidden');
+                }
 
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
                 const startGameBtn = document.getElementById('start-game-btn');
