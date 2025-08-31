@@ -372,10 +372,10 @@
     </div>
 
     <script>
-        // Версия 8.12 - ИСПРАВЛЕНО ОПРЕДЕЛЕНИЕ ОКРУЖЕНИЯ
+        // Версия 9.0 - ПОДКЛЮЧЕНИЕ К VERCEL API
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : null;
+        const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
         
         // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
         console.log('🌐 Текущий хост:', window.location.hostname);
@@ -742,6 +742,34 @@
             return true;
         }
 
+        // ФУНКЦИЯ ДЛЯ СОЗДАНИЯ/ОБНОВЛЕНИЯ ПОЛЬЗОВАТЕЛЯ В API
+        async function createOrUpdatePlayerInAPI(user) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/players/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        telegram_id: user.telegram_id || user.id,
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        username: user.username
+                    })
+                });
+                
+                if (response.ok) {
+                    const playerData = await response.json();
+                    console.log('✅ Пользователь создан/обновлен в API:', playerData);
+                    return playerData;
+                } else {
+                    console.error('❌ Ошибка создания пользователя:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Ошибка API пользователя:', error);
+            }
+        }
+
         // ФУНКЦИИ ДЛЯ РАБОТЫ С ЛОКАЛЬНЫМИ КОМНАТАМИ
         function saveRoomToLocalStorage(room) {
             try {
@@ -1032,11 +1060,8 @@
             const roomsList = document.getElementById('rooms-list');
             
             try {
-                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
-                if (!API_BASE_URL) {
-                    console.log('📱 Онлайн режим - используем локальное хранилище');
-                    throw new Error('Используем локальное хранилище');
-                }
+                // API ВСЕГДА ДОСТУПЕН
+                console.log('🌐 Загружаем комнаты из API:', API_BASE_URL);
                 
                 // ПОЛУЧАЕМ КОМНАТЫ ИЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/`);
@@ -1100,11 +1125,11 @@
             console.log('📝 СОЗДАЕМ КОМНАТУ:', roomName);
             
             try {
-                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
-                if (!API_BASE_URL) {
-                    console.log('📱 Онлайн режим - создаем комнату локально');
-                    throw new Error('Создаем локально');
-                }
+                // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
+                console.log('🌐 Создаем комнату через API:', API_BASE_URL);
+                
+                // СНАЧАЛА СОЗДАЕМ/ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ В API
+                await createOrUpdatePlayerInAPI(currentUser);
                 
                 // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/`, {
@@ -1114,7 +1139,7 @@
                     },
                     body: JSON.stringify({
                         name: roomName,
-                        creator_id: currentUser.telegram_id || currentUser.id,
+                        creator_telegram_id: currentUser.telegram_id || currentUser.id,
                         max_players: 4
                     })
                 });
@@ -1191,11 +1216,8 @@
             }
             
             try {
-                // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
-                if (!API_BASE_URL) {
-                    console.log('📱 Онлайн режим - используем локальные данные');
-                    throw new Error('Используем локальные данные');
-                }
+                // ЗАГРУЖАЕМ КОМНАТУ ИЗ API
+                console.log('🌐 Загружаем комнату из API:', API_BASE_URL);
                 
                 // ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ ИЗ API
                 const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
@@ -1237,9 +1259,9 @@
                 }
 
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                const startGameBtn = document.getElementById('start-game-btn');
-                startGameBtn.disabled = true;
-                startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                    const startGameBtn = document.getElementById('start-game-btn');
+                        startGameBtn.disabled = true;
+                        startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
                 
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
                 showSection('room-details');
@@ -1287,7 +1309,7 @@
                 const startGameBtn = document.getElementById('start-game-btn');
                 startGameBtn.disabled = true;
                 startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
-                
+
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА (FALLBACK):', currentRoom);
                 showSection('room-details');
             }
