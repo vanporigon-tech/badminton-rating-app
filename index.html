@@ -78,6 +78,16 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
         }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+        }
 
         .btn-back {
             background: rgba(255, 255, 255, 0.1);
@@ -357,6 +367,11 @@
                 <div id="join-controls">
                     <button id="join-room-btn" class="btn btn-secondary">
                         ➕ Присоединиться к комнате
+                    </button>
+                </div>
+                <div id="leave-controls" class="hidden">
+                    <button id="leave-room-btn" class="btn btn-danger btn-large">
+                        🚪 Покинуть комнату
                     </button>
                 </div>
             </div>
@@ -780,7 +795,8 @@
                                 displayMembersList(updatedRoom.members);
                                 document.getElementById('member-count').textContent = updatedRoom.member_count;
                                 
-                                // ОБНОВЛЯЕМ КНОПКУ ИГРЫ
+                                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ И ИГРЫ
+                                updateRoomControls(updatedRoom, currentUser);
                                 updateStartGameButton(updatedRoom.member_count);
                             }
                         }
@@ -993,6 +1009,7 @@
             // Room details
             document.getElementById('start-game-btn').addEventListener('click', handleStartGame);
             document.getElementById('join-room-btn').addEventListener('click', handleJoinRoom);
+            document.getElementById('leave-room-btn').addEventListener('click', handleLeaveRoom);
 
             // Game result
             document.getElementById('finish-game-btn').addEventListener('click', handleFinishGame);
@@ -1342,7 +1359,7 @@
                     // ИСПОЛЬЗУЕМ РЕАЛЬНЫЕ ДАННЫЕ ИЗ API
                     console.log('👥 Участники из API:', room.members);
                     displayMembersList(room.members);
-                } else {
+                    } else {
                     // FALLBACK: создаем данные для текущего пользователя
                     const fallbackMembers = [{
                         id: 1,
@@ -1361,16 +1378,9 @@
                     displayMembersList(fallbackMembers);
                 }
                 
-                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА ЕСЛИ ЭТО ВАШ СОЗДАТЕЛЬ
-                const isCreator = room.creator_id === (currentUser.telegram_id || currentUser.id);
-                if (isCreator) {
-                    document.getElementById('leader-controls').classList.remove('hidden');
-                    document.getElementById('join-controls').classList.add('hidden');
-                } else {
-                    document.getElementById('leader-controls').classList.add('hidden');
-                    document.getElementById('join-controls').classList.remove('hidden');
-                }
-
+                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ
+                updateRoomControls(room, currentUser);
+                
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
                 updateStartGameButton(room.member_count || room.members?.length || 0);
                 
@@ -1409,16 +1419,9 @@
                 
                 displayMembersList(members);
                 
-                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА ЕСЛИ ЭТО ВАШ СОЗДАТЕЛЬ
-                const isCreator = room.creator_id === (currentUser.telegram_id || currentUser.id);
-                if (isCreator) {
-                    document.getElementById('leader-controls').classList.remove('hidden');
-                    document.getElementById('join-controls').classList.add('hidden');
-                } else {
-                    document.getElementById('leader-controls').classList.add('hidden');
-                    document.getElementById('join-controls').classList.remove('hidden');
-                }
-
+                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ
+                updateRoomControls(localRoom || currentRoom, currentUser);
+                
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
                 updateStartGameButton(localRoom?.member_count || fallbackData.roomMembers?.length || 0);
 
@@ -1462,6 +1465,56 @@
             }).join('');
 
             membersUl.innerHTML = membersHtml;
+        }
+
+        // ОПРЕДЕЛЕНИЕ СТАТУСА ПОЛЬЗОВАТЕЛЯ В КОМНАТЕ
+        function getUserRoomStatus(room, user) {
+            if (!room || !user) return 'not_member';
+            
+            const userTelegramId = user.telegram_id || user.id;
+            
+            // Проверяем является ли пользователь участником
+            const isMember = room.members && room.members.some(member => 
+                member.player.telegram_id === userTelegramId
+            );
+            
+            if (!isMember) return 'not_member';
+            
+            // Проверяем является ли создателем
+            const isCreator = room.creator_id === userTelegramId;
+            return isCreator ? 'creator' : 'member';
+        }
+        
+        // ОБНОВЛЕНИЕ КНОПОК УПРАВЛЕНИЯ В ЗАВИСИМОСТИ ОТ СТАТУСА ПОЛЬЗОВАТЕЛЯ
+        function updateRoomControls(room, user) {
+            const status = getUserRoomStatus(room, user);
+            
+            const leaderControls = document.getElementById('leader-controls');
+            const joinControls = document.getElementById('join-controls');
+            const leaveControls = document.getElementById('leave-controls');
+            
+            // Скрываем все кнопки
+            leaderControls.classList.add('hidden');
+            joinControls.classList.add('hidden');
+            leaveControls.classList.add('hidden');
+            
+            switch (status) {
+                case 'creator':
+                    // Создатель: показываем кнопку старта и выхода
+                    leaderControls.classList.remove('hidden');
+                    leaveControls.classList.remove('hidden');
+                    break;
+                case 'member':
+                    // Участник: показываем только кнопку выхода
+                    leaveControls.classList.remove('hidden');
+                    break;
+                case 'not_member':
+                    // Не участник: показываем кнопку присоединения
+                    joinControls.classList.remove('hidden');
+                    break;
+            }
+            
+            console.log(`🎮 Статус пользователя в комнате: ${status}`);
         }
 
         // ОБНОВЛЕНИЕ КНОПКИ СТАРТА ИГРЫ В ЗАВИСИМОСТИ ОТ КОЛИЧЕСТВА УЧАСТНИКОВ
@@ -1550,6 +1603,60 @@
                 
             } catch (error) {
                 console.error('❌ ОШИБКА ПРИСОЕДИНЕНИЯ К КОМНАТЕ:', error);
+                showMessage('❌ Ошибка соединения с сервером', 'error');
+            }
+        }
+
+        async function handleLeaveRoom() {
+            console.log('🚪 ВЫХОД ИЗ КОМНАТЫ:', currentRoom?.id);
+            
+            if (!currentUser) {
+                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
+                return;
+            }
+            
+            if (!currentRoom) {
+                showMessage('ОШИБКА: комната не выбрана!', 'error');
+                return;
+            }
+            
+            // Подтверждение выхода
+            const confirmed = confirm('Вы уверены что хотите покинуть комнату?');
+            if (!confirmed) return;
+            
+            try {
+                // ВЫХОДИМ ИЗ КОМНАТЫ ЧЕРЕЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/leave`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        telegram_id: currentUser.telegram_id || currentUser.id
+                    })
+                });
+                
+                console.log('📡 Leave Response status:', response.status);
+                
+                if (response.ok) {
+                    const leaveData = await response.json();
+                    console.log('✅ ПОКИНУЛИ КОМНАТУ:', leaveData);
+                    
+                    showMessage('✅ Вы покинули комнату', 'success');
+                    
+                    // Возвращаемся в главное меню
+                    currentRoom = null;
+                    stopRoomUpdates();
+                    showMainMenu();
+                    
+                } else {
+                    const errorData = await response.json();
+                    console.log('❌ ОШИБКА ВЫХОДА:', errorData);
+                    showMessage(`❌ ${errorData.error || 'Ошибка выхода из комнаты'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('❌ ОШИБКА ВЫХОДА ИЗ КОМНАТЫ:', error);
                 showMessage('❌ Ошибка соединения с сервером', 'error');
             }
         }
