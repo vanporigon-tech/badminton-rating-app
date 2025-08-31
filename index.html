@@ -244,6 +244,18 @@
             font-size: 18px;
             margin: 15px 0;
         }
+        
+        .btn-disabled {
+            background-color: #6c757d;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .btn-disabled:hover {
+            background-color: #6c757d;
+            transform: none;
+        }
 
         .game-rules {
             color: #b0b0b0;
@@ -372,7 +384,7 @@
     </div>
 
     <script>
-        // Версия 9.3 - ПРИСОЕДИНЕНИЕ К КОМНАТЕ + АВТООБНОВЛЕНИЕ УЧАСТНИКОВ
+        // Версия 9.4 - УМНАЯ КНОПКА СТАРТА ИГРЫ (активна при 2/4 игроков)
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
@@ -767,6 +779,9 @@
                             if (updatedRoom.members && updatedRoom.members.length > 0) {
                                 displayMembersList(updatedRoom.members);
                                 document.getElementById('member-count').textContent = updatedRoom.member_count;
+                                
+                                // ОБНОВЛЯЕМ КНОПКУ ИГРЫ
+                                updateStartGameButton(updatedRoom.member_count);
                             }
                         }
                     }
@@ -1357,9 +1372,7 @@
                 }
 
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                    const startGameBtn = document.getElementById('start-game-btn');
-                        startGameBtn.disabled = true;
-                        startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                updateStartGameButton(room.member_count || room.members?.length || 0);
                 
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
                 showSection('room-details');
@@ -1407,9 +1420,7 @@
                 }
 
                 // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                const startGameBtn = document.getElementById('start-game-btn');
-                startGameBtn.disabled = true;
-                startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                updateStartGameButton(localRoom?.member_count || fallbackData.roomMembers?.length || 0);
 
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА (FALLBACK):', currentRoom);
                 showSection('room-details');
@@ -1453,7 +1464,36 @@
             membersUl.innerHTML = membersHtml;
         }
 
+        // ОБНОВЛЕНИЕ КНОПКИ СТАРТА ИГРЫ В ЗАВИСИМОСТИ ОТ КОЛИЧЕСТВА УЧАСТНИКОВ
+        function updateStartGameButton(memberCount) {
+            const startGameBtn = document.getElementById('start-game-btn');
+            
+            if (!startGameBtn) return;
+            
+            // Проверяем количество участников (2 или 4 - можно играть)
+            if (memberCount === 2 || memberCount === 4) {
+                startGameBtn.disabled = false;
+                startGameBtn.textContent = '🚀 Начать игру';
+                startGameBtn.className = 'btn btn-primary btn-large';
+            } else {
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = `⏳ Недостаточно игроков (нужно 2 или 4)`;
+                startGameBtn.className = 'btn btn-disabled btn-large';
+            }
+            
+            console.log(`🎮 Кнопка игры обновлена: ${memberCount} игроков`);
+        }
+
         function handleStartGame() {
+            const memberCount = currentRoom?.member_count || currentRoom?.members?.length || 0;
+            
+            // Проверяем количество участников перед стартом
+            if (memberCount !== 2 && memberCount !== 4) {
+                showMessage(`❌ Недостаточно игроков! Нужно 2 или 4 игрока. Сейчас: ${memberCount}`, 'error');
+                return;
+            }
+            
+            console.log(`🚀 НАЧИНАЕМ ИГРУ С ${memberCount} ИГРОКАМИ`);
             showSection('game-result');
         }
 
