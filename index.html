@@ -1129,6 +1129,7 @@
                 console.log('🌐 Создаем комнату через API:', API_BASE_URL);
                 
                 // СНАЧАЛА СОЗДАЕМ/ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ В API
+                console.log('👤 Создаем пользователя:', currentUser);
                 await createOrUpdatePlayerInAPI(currentUser);
                 
                 // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
@@ -1144,13 +1145,24 @@
                     })
                 });
 
-                if (!response.ok) {
-                    console.log('❌ ОШИБКА API:', response.status);
+                console.log('📡 Response status:', response.status);
+                
+                if (response.ok) {
+                    const roomData = await response.json();
+                    console.log('✅ КОМНАТА СОЗДАНА В API:', roomData);
+                    
+                    currentRoom = roomData;
+                    showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+                    showRoomDetails(roomData.id);
+                    
+            } else {
+                    const errorText = await response.text();
+                    console.log('❌ ОШИБКА API:', response.status, errorText);
                     // FALLBACK: создаем локально если API не работает
-            const newRoom = {
-                id: Date.now(),
-                name: roomName,
-                        creator_id: currentUser.id,
+                    const newRoom = {
+                        id: Date.now(),
+                        name: roomName,
+                        creator_id: currentUser.telegram_id || currentUser.id,
                         creator_full_name: roomName,
                         member_count: 1,
                         members: [{
@@ -1161,29 +1173,24 @@
                             },
                             is_leader: true
                         }]
-            };
-
-            currentRoom = newRoom;
-                    console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО:', currentRoom);
-                    showMessage(`✅ Комната "${roomName}" создана!`, 'success');
-            showRoomDetails(newRoom.id);
-                    return;
+                    };
+                    
+                    // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
+                    saveRoomToLocalStorage(newRoom);
+                    
+                    currentRoom = newRoom;
+                    console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
+                    showMessage(`✅ Комната "${roomName}" создана локально!`, 'success');
+                    showRoomDetails(newRoom.id);
                 }
-
-                const newRoom = await response.json();
-                console.log('✅ КОМНАТА СОЗДАНА ЧЕРЕЗ API:', newRoom);
-                
-                currentRoom = newRoom;
-                showMessage(`✅ Комната "${roomName}" создана и видна всем!`, 'success');
-                showRoomDetails(newRoom.id);
                 
             } catch (error) {
                 console.error('❌ ОШИБКА СОЗДАНИЯ КОМНАТЫ:', error);
                 
                 // FALLBACK: создаем локально если API не работает
-                const newRoom = {
-                    id: Date.now(),
-                    name: roomName,
+            const newRoom = {
+                id: Date.now(),
+                name: roomName,
                     creator_id: currentUser.telegram_id || currentUser.id,
                     creator_full_name: roomName,
                     member_count: 1,
@@ -1199,11 +1206,11 @@
                 
                 // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
                 saveRoomToLocalStorage(newRoom);
-                
-                currentRoom = newRoom;
+
+            currentRoom = newRoom;
                 console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
                 showMessage(`✅ Комната "${roomName}" создана локально!`, 'success');
-                showRoomDetails(newRoom.id);
+            showRoomDetails(newRoom.id);
             }
         }
 
