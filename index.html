@@ -372,7 +372,7 @@
     </div>
 
     <script>
-        // Версия 8.8 - ОПТИМИЗИРОВАННЫЙ PROMPT ДЛЯ КОМПЬЮТЕРА
+        // Версия 8.9 - СИНХРОНИЗАЦИЯ КОМНАТ ЧЕРЕЗ API
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -1005,30 +1005,60 @@
             loadRooms();
         }
 
-        function loadRooms() {
-            console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ v6.2');
+        async function loadRooms() {
+            console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ ИЗ API');
             const roomsList = document.getElementById('rooms-list');
             
-            // ПОКАЗЫВАЕМ ТЕСТОВЫЕ КОМНАТЫ
-            setTimeout(() => {
-                if (fallbackData.availableRooms.length === 0) {
+            try {
+                // ПОЛУЧАЕМ КОМНАТЫ ИЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/`);
+                
+                if (!response.ok) {
+                    console.log('❌ ОШИБКА API:', response.status);
+                    throw new Error('API недоступен');
+                }
+                
+                const rooms = await response.json();
+                console.log('✅ КОМНАТЫ ЗАГРУЖЕНЫ ИЗ API:', rooms);
+                
+                if (!rooms || rooms.length === 0) {
                     roomsList.innerHTML = '<p>Нет доступных комнат</p>';
                     return;
                 }
 
-                const roomsHtml = fallbackData.availableRooms.map(room => `
+                const roomsHtml = rooms.map(room => `
                     <div class="room-item" onclick="showRoomDetails(${room.id})">
                         <div class="room-name">${room.name}</div>
-                        <div class="room-info">Участников: ${room.member_count}/4</div>
+                        <div class="room-info">Участников: ${room.member_count || 1}/4</div>
                     </div>
                 `).join('');
 
                 roomsList.innerHTML = roomsHtml;
-            }, 500);
+                
+            } catch (error) {
+                console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТ:', error);
+                
+                // FALLBACK: показываем тестовые комнаты
+                setTimeout(() => {
+                    if (fallbackData.availableRooms.length === 0) {
+                        roomsList.innerHTML = '<p>Нет доступных комнат (API недоступен)</p>';
+                        return;
+                    }
+
+                    const roomsHtml = fallbackData.availableRooms.map(room => `
+                        <div class="room-item" onclick="showRoomDetails(${room.id})">
+                            <div class="room-name">${room.name}</div>
+                            <div class="room-info">Участников: ${room.member_count}/4</div>
+                        </div>
+                    `).join('');
+
+                    roomsList.innerHTML = roomsHtml;
+                }, 500);
+            }
         }
 
         async function handleCreateRoom() {
-            console.log('➕ СОЗДАНИЕ КОМНАТЫ v6.2');
+            console.log('➕ СОЗДАНИЕ КОМНАТЫ С API');
             console.log('👤 currentUser:', currentUser);
             
             if (!currentUser) {
@@ -1041,71 +1071,174 @@
             const roomName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
             console.log('📝 СОЗДАЕМ КОМНАТУ:', roomName);
             
-            // СОЗДАЕМ КОМНАТУ ЛОКАЛЬНО (без API)
-            const newRoom = {
-                id: Date.now(),
-                name: roomName,
-                creator_id: currentUser.id,
-                creator_full_name: roomName,
-                member_count: 1,
-                members: [{
-                    id: currentUser.id,
-                    player: {
-                        first_name: currentUser.first_name,
-                        last_name: currentUser.last_name
+            try {
+                // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                    is_leader: true
-                }]
-            };
+                    body: JSON.stringify({
+                        name: roomName,
+                        creator_id: currentUser.telegram_id || currentUser.id,
+                        max_players: 4
+                    })
+                });
 
-            currentRoom = newRoom;
-            console.log('✅ КОМНАТА СОЗДАНА:', currentRoom);
-            showMessage(`✅ Комната "${roomName}" создана!`, 'success');
-            showRoomDetails(newRoom.id);
+                if (!response.ok) {
+                    console.log('❌ ОШИБКА API:', response.status);
+                    // FALLBACK: создаем локально если API не работает
+                    const newRoom = {
+                        id: Date.now(),
+                        name: roomName,
+                        creator_id: currentUser.id,
+                        creator_full_name: roomName,
+                        member_count: 1,
+                        members: [{
+                            id: currentUser.id,
+                            player: {
+                                first_name: currentUser.first_name,
+                                last_name: currentUser.last_name
+                            },
+                            is_leader: true
+                        }]
+                    };
+                    
+                    currentRoom = newRoom;
+                    console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО:', currentRoom);
+                    showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+                    showRoomDetails(newRoom.id);
+                    return;
+                }
+
+                const newRoom = await response.json();
+                console.log('✅ КОМНАТА СОЗДАНА ЧЕРЕЗ API:', newRoom);
+                
+                currentRoom = newRoom;
+                showMessage(`✅ Комната "${roomName}" создана и видна всем!`, 'success');
+                showRoomDetails(newRoom.id);
+                
+            } catch (error) {
+                console.error('❌ ОШИБКА СОЗДАНИЯ КОМНАТЫ:', error);
+                
+                // FALLBACK: создаем локально если API не работает
+                const newRoom = {
+                    id: Date.now(),
+                    name: roomName,
+                    creator_id: currentUser.id,
+                    creator_full_name: roomName,
+                    member_count: 1,
+                    members: [{
+                        id: currentUser.id,
+                        player: {
+                            first_name: currentUser.first_name,
+                            last_name: currentUser.last_name
+                        },
+                        is_leader: true
+                    }]
+                };
+                
+                currentRoom = newRoom;
+                console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
+                showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+                showRoomDetails(newRoom.id);
+            }
         }
 
-        function showRoomDetails(roomId) {
-            console.log('🏠 ПОКАЗЫВАЕМ КОМНАТУ v6.2:', roomId);
+        async function showRoomDetails(roomId) {
+            console.log('🏠 ПОКАЗЫВАЕМ КОМНАТУ С API:', roomId);
             
             if (!currentUser) {
                 showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
             }
             
-            // ИСПОЛЬЗУЕМ ЛОКАЛЬНЫЕ ДАННЫЕ (простая версия)
-            if (!currentRoom || currentRoom.id !== roomId) {
-                console.log('❌ Комната не найдена');
-                showMessage('Комната не найдена', 'error');
-                return;
-            }
-            
-            const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
-            
-            // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
-            document.getElementById('room-leader-name').textContent = userName;
-            document.getElementById('member-count').textContent = '1';
-            
-            // ПОКАЗЫВАЕМ УЧАСТНИКОВ (только создатель)
-            const members = [{
-                player_id: currentUser.id,
-                is_leader: true,
-                name: userName,
-                rating: 'B+'
-            }];
-            
-            displayMembersList(members);
-            
-            // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА
+            try {
+                // ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ ИЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
+                
+                if (!response.ok) {
+                    console.log('❌ ОШИБКА API:', response.status);
+                    throw new Error('Комната не найдена в API');
+                }
+                
+                const room = await response.json();
+                console.log('✅ КОМНАТА ЗАГРУЖЕНА ИЗ API:', room);
+                
+                currentRoom = room;
+                
+                const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+                
+                // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
+                document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
+                document.getElementById('member-count').textContent = room.member_count || '1';
+                
+                // ПОКАЗЫВАЕМ УЧАСТНИКОВ
+                const members = room.members || [{
+                    player_id: currentUser.id,
+                    is_leader: true,
+                    name: userName,
+                    rating: 'B+'
+                }];
+                
+                displayMembersList(members);
+                
+                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА ЕСЛИ ЭТО ВАШ СОЗДАТЕЛЬ
+                const isCreator = room.creator_id === (currentUser.telegram_id || currentUser.id);
+                if (isCreator) {
                     document.getElementById('leader-controls').classList.remove('hidden');
                     document.getElementById('join-controls').classList.add('hidden');
+                } else {
+                    document.getElementById('leader-controls').classList.add('hidden');
+                    document.getElementById('join-controls').classList.remove('hidden');
+                }
 
-            // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                    const startGameBtn = document.getElementById('start-game-btn');
-                        startGameBtn.disabled = true;
-                        startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
-            
-            console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
+                // НАСТРАИВАЕМ КНОПКУ ИГРЫ
+                const startGameBtn = document.getElementById('start-game-btn');
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                
+                console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
                 showSection('room-details');
+                
+            } catch (error) {
+                console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТЫ:', error);
+                
+                // FALLBACK: используем локальные данные если API не работает
+                if (!currentRoom || currentRoom.id !== roomId) {
+                    console.log('❌ Комната не найдена локально');
+                    showMessage('Комната не найдена', 'error');
+                    return;
+                }
+                
+                const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+                
+                // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
+                document.getElementById('room-leader-name').textContent = userName;
+                document.getElementById('member-count').textContent = '1';
+                
+                // ПОКАЗЫВАЕМ УЧАСТНИКОВ (только создатель)
+                const members = [{
+                    player_id: currentUser.id,
+                    is_leader: true,
+                    name: userName,
+                    rating: 'B+'
+                }];
+                
+                displayMembersList(members);
+                
+                // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА
+                document.getElementById('leader-controls').classList.remove('hidden');
+                document.getElementById('join-controls').classList.add('hidden');
+
+                // НАСТРАИВАЕМ КНОПКУ ИГРЫ
+                const startGameBtn = document.getElementById('start-game-btn');
+                startGameBtn.disabled = true;
+                startGameBtn.textContent = '⏳ Недостаточно игроков (нужно 2 или 4)';
+                
+                console.log('✅ КОМНАТА ОТОБРАЖЕНА (FALLBACK):', currentRoom);
+                showSection('room-details');
+            }
         }
 
         function displayMembersList(members) {
