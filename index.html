@@ -372,7 +372,7 @@
     </div>
 
     <script>
-        // Версия 8.9 - СИНХРОНИЗАЦИЯ КОМНАТ ЧЕРЕЗ API
+        // Версия 8.10 - УДАЛЕНЫ ТЕСТОВЫЕ КОМНАТЫ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -736,20 +736,7 @@
         }
 
         const fallbackData = {
-            availableRooms: [
-                {
-                    id: 1,
-                    name: 'Пример комната 1',
-                    creator_id: 123,
-                    member_count: 2
-                },
-                {
-                    id: 2,
-                    name: 'Пример комната 2',
-                    creator_id: 456,
-                    member_count: 3
-                }
-            ],
+            availableRooms: [],
             roomMembers: [
                 {
                     player_id: 123,
@@ -1046,14 +1033,14 @@
                     }
 
                     const roomsHtml = fallbackData.availableRooms.map(room => `
-                        <div class="room-item" onclick="showRoomDetails(${room.id})">
-                            <div class="room-name">${room.name}</div>
-                            <div class="room-info">Участников: ${room.member_count}/4</div>
-                        </div>
-                    `).join('');
+                    <div class="room-item" onclick="showRoomDetails(${room.id})">
+                        <div class="room-name">${room.name}</div>
+                        <div class="room-info">Участников: ${room.member_count}/4</div>
+                    </div>
+                `).join('');
 
-                    roomsList.innerHTML = roomsHtml;
-                }, 500);
+                roomsList.innerHTML = roomsHtml;
+            }, 500);
             }
         }
 
@@ -1088,9 +1075,9 @@
                 if (!response.ok) {
                     console.log('❌ ОШИБКА API:', response.status);
                     // FALLBACK: создаем локально если API не работает
-                    const newRoom = {
-                        id: Date.now(),
-                        name: roomName,
+            const newRoom = {
+                id: Date.now(),
+                name: roomName,
                         creator_id: currentUser.id,
                         creator_full_name: roomName,
                         member_count: 1,
@@ -1102,12 +1089,12 @@
                             },
                             is_leader: true
                         }]
-                    };
-                    
-                    currentRoom = newRoom;
+            };
+
+            currentRoom = newRoom;
                     console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО:', currentRoom);
                     showMessage(`✅ Комната "${roomName}" создана!`, 'success');
-                    showRoomDetails(newRoom.id);
+            showRoomDetails(newRoom.id);
                     return;
                 }
 
@@ -1166,7 +1153,7 @@
                 console.log('✅ КОМНАТА ЗАГРУЖЕНА ИЗ API:', room);
                 
                 currentRoom = room;
-                
+
                 const userName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
                 
                 // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
@@ -1200,7 +1187,7 @@
                 
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
                 showSection('room-details');
-                
+
             } catch (error) {
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТЫ:', error);
                 
