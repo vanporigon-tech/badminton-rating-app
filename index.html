@@ -372,7 +372,7 @@
     </div>
 
     <script>
-        // Версия 9.0 - ПОДКЛЮЧЕНИЕ К VERCEL API
+        // Версия 9.1 - ИСПРАВЛЕНО ОТОБРАЖЕНИЕ УЧАСТНИКОВ КОМНАТЫ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
@@ -1245,15 +1245,29 @@
                 document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
                 document.getElementById('member-count').textContent = room.member_count || '1';
                 
-                // ПОКАЗЫВАЕМ УЧАСТНИКОВ
-                const members = room.members || [{
-                    player_id: currentUser.id,
-                    is_leader: true,
-                    name: userName,
-                    rating: 'B+'
-                }];
-                
-                displayMembersList(members);
+                // ПОКАЗЫВАЕМ УЧАСТНИКОВ ИЗ API
+                if (room.members && room.members.length > 0) {
+                    // ИСПОЛЬЗУЕМ РЕАЛЬНЫЕ ДАННЫЕ ИЗ API
+                    console.log('👥 Участники из API:', room.members);
+                    displayMembersList(room.members);
+                } else {
+                    // FALLBACK: создаем данные для текущего пользователя
+                    const fallbackMembers = [{
+                        id: 1,
+                        player: {
+                            id: currentUser.telegram_id || currentUser.id,
+                            telegram_id: currentUser.telegram_id || currentUser.id,
+                            first_name: currentUser.first_name,
+                            last_name: currentUser.last_name,
+                            username: currentUser.username,
+                            rating: 1500
+                        },
+                        is_leader: true,
+                        joined_at: new Date().toISOString()
+                    }];
+                    console.log('👥 Участники FALLBACK:', fallbackMembers);
+                    displayMembersList(fallbackMembers);
+                }
                 
                 // ПОКАЗЫВАЕМ УПРАВЛЕНИЕ ЛИДЕРА ЕСЛИ ЭТО ВАШ СОЗДАТЕЛЬ
                 const isCreator = room.creator_id === (currentUser.telegram_id || currentUser.id);
@@ -1330,13 +1344,31 @@
                 return;
             }
 
-            const membersHtml = members.map(member => `
-                <li>
-                    <div class="member-item ${member.is_leader ? 'leader' : ''}">
-                        <span>${member.is_leader ? '👑 ' : ''}${member.name}</span>
-                    </div>
-                </li>
-            `).join('');
+            const membersHtml = members.map(member => {
+                // ИЗВЛЕКАЕМ ИМЯ В ЗАВИСИМОСТИ ОТ СТРУКТУРЫ ДАННЫХ
+                let memberName = '';
+                
+                if (member.player && member.player.first_name) {
+                    // ДАННЫЕ ИЗ API - у member есть объект player
+                    memberName = `${member.player.first_name} ${member.player.last_name || ''}`.trim();
+                } else if (member.name) {
+                    // ЛОКАЛЬНЫЕ ДАННЫЕ - у member есть поле name
+                    memberName = member.name;
+                } else {
+                    // FALLBACK
+                    memberName = 'Неизвестный игрок';
+                }
+                
+                console.log('👤 Отображаем участника:', member, 'Имя:', memberName);
+                
+                return `
+                    <li>
+                        <div class="member-item ${member.is_leader ? 'leader' : ''}">
+                            <span>${member.is_leader ? '👑 ' : ''}${memberName}</span>
+                        </div>
+                    </li>
+                `;
+            }).join('');
 
             membersUl.innerHTML = membersHtml;
         }
