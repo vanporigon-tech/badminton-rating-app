@@ -372,10 +372,15 @@
     </div>
 
     <script>
-        // Версия 8.11 - ЛОКАЛЬНОЕ ХРАНИЛИЩЕ ДЛЯ GITHUB PAGES
+        // Версия 8.12 - ИСПРАВЛЕНО ОПРЕДЕЛЕНИЕ ОКРУЖЕНИЯ
         // Определяем URL API в зависимости от окружения
-        const isGitHubPages = window.location.hostname === 'vanporigon-tech.github.io';
-        const API_BASE_URL = isGitHubPages ? null : 'http://localhost:8000';
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : null;
+        
+        // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
+        console.log('🌐 Текущий хост:', window.location.hostname);
+        console.log('🔧 Это localhost?', isLocalhost);
+        console.log('🚀 API_BASE_URL:', API_BASE_URL);
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
         const cacheVersion = '?v=' + Date.now();
@@ -1029,8 +1034,8 @@
             try {
                 // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
                 if (!API_BASE_URL) {
-                    console.log('📱 GitHub Pages режим - API недоступен, показываем пустой список');
-                    throw new Error('API недоступен на GitHub Pages');
+                    console.log('📱 Онлайн режим - используем локальное хранилище');
+                    throw new Error('Используем локальное хранилище');
                 }
                 
                 // ПОЛУЧАЕМ КОМНАТЫ ИЗ API
@@ -1038,7 +1043,7 @@
                 
                 if (!response.ok) {
                     console.log('❌ ОШИБКА API:', response.status);
-                    throw new Error('API недоступен');
+                    throw new Error('Переключаемся на локальные данные');
                 }
                 
                 const rooms = await response.json();
@@ -1065,7 +1070,7 @@
                 const localRooms = getLocalRooms();
                 
                 if (localRooms.length === 0) {
-                    roomsList.innerHTML = '<p>Нет доступных комнат<br><small>Создайте комнату, чтобы она появилась здесь!</small></p>';
+                    roomsList.innerHTML = '<p>Нет доступных комнат<br><small>✨ Создайте комнату, чтобы она появилась здесь!</small></p>';
                     return;
                 }
 
@@ -1097,8 +1102,8 @@
             try {
                 // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
                 if (!API_BASE_URL) {
-                    console.log('📱 GitHub Pages режим - API недоступен, создаем локально');
-                    throw new Error('API недоступен на GitHub Pages');
+                    console.log('📱 Онлайн режим - создаем комнату локально');
+                    throw new Error('Создаем локально');
                 }
                 
                 // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
@@ -1188,8 +1193,8 @@
             try {
                 // ПРОВЕРЯЕМ ДОСТУПНОСТЬ API
                 if (!API_BASE_URL) {
-                    console.log('📱 GitHub Pages режим - API недоступен, используем локальные данные');
-                    throw new Error('API недоступен на GitHub Pages');
+                    console.log('📱 Онлайн режим - используем локальные данные');
+                    throw new Error('Используем локальные данные');
                 }
                 
                 // ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ ИЗ API
