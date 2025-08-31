@@ -742,6 +742,50 @@
             return true;
         }
 
+        // АВТООБНОВЛЕНИЕ КОМНАТЫ ДЛЯ СИНХРОНИЗАЦИИ УЧАСТНИКОВ
+        let roomUpdateInterval = null;
+        
+        function startRoomUpdates(roomId) {
+            // Останавливаем предыдущие обновления
+            if (roomUpdateInterval) {
+                clearInterval(roomUpdateInterval);
+            }
+            
+            // Запускаем обновления каждые 5 секунд
+            roomUpdateInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
+                    if (response.ok) {
+                        const updatedRoom = await response.json();
+                        
+                        // Проверяем изменилось ли количество участников
+                        if (currentRoom && updatedRoom.member_count !== currentRoom.member_count) {
+                            console.log('👥 Обновление участников комнаты:', updatedRoom.member_count);
+                            currentRoom = updatedRoom;
+                            
+                            // Обновляем отображение участников
+                            if (updatedRoom.members && updatedRoom.members.length > 0) {
+                                displayMembersList(updatedRoom.members);
+                                document.getElementById('member-count').textContent = updatedRoom.member_count;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log('⚠️ Ошибка автообновления комнаты:', error);
+                }
+            }, 5000); // каждые 5 секунд
+            
+            console.log('🔄 Автообновление комнаты запущено');
+        }
+        
+        function stopRoomUpdates() {
+            if (roomUpdateInterval) {
+                clearInterval(roomUpdateInterval);
+                roomUpdateInterval = null;
+                console.log('⏹️ Автообновление комнаты остановлено');
+            }
+        }
+
         // ЕДИНАЯ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ОТОБРАЖАЕМОГО ИМЕНИ
         function getDisplayName(user = null) {
             const userData = user || currentUser;
@@ -954,6 +998,8 @@
                 const confirmed = confirm('Вы уверены что хотите выйти из этой комнаты?');
                 if (confirmed) {
                     currentRoom = null;
+                    // ОСТАНАВЛИВАЕМ АВТООБНОВЛЕНИЕ КОМНАТЫ
+                    stopRoomUpdates();
                 } else {
                     return;
                 }
@@ -1317,6 +1363,9 @@
                 
                 console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
                 showSection('room-details');
+                
+                // ЗАПУСКАЕМ АВТООБНОВЛЕНИЕ КОМНАТЫ
+                startRoomUpdates(room.id);
 
             } catch (error) {
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТЫ:', error);
@@ -1408,22 +1457,61 @@
             showSection('game-result');
         }
 
-        function handleJoinRoom() {
-            // Simulate joining room
-            showMessage('Вы присоединились к комнате!', 'success');
+        async function handleJoinRoom() {
+            console.log('🚪 ПРИСОЕДИНЕНИЕ К КОМНАТЕ:', currentRoom?.id);
             
-            // Обновление данных
-            const newMember = {
-                player_id: 999,
-                is_leader: false,
-                name: 'Новый игрок',
-                rating: 'C'
-            };
+            if (!currentUser) {
+                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
+                return;
+            }
             
-            fallbackData.roomMembers.push(newMember);
+            if (!currentRoom) {
+                showMessage('ОШИБКА: комната не выбрана!', 'error');
+                return;
+            }
             
-            // Refresh room display
+            try {
+                // СНАЧАЛА СОЗДАЕМ/ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ В API
+                await createOrUpdatePlayerInAPI(currentUser);
+                
+                // ПРИСОЕДИНЯЕМСЯ К КОМНАТЕ ЧЕРЕЗ API
+                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        telegram_id: currentUser.telegram_id || currentUser.id,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username
+                    })
+                });
+                
+                console.log('📡 Join Response status:', response.status);
+                
+                if (response.ok) {
+                    const joinData = await response.json();
+                    console.log('✅ ПРИСОЕДИНИЛИСЬ К КОМНАТЕ:', joinData);
+                    
+                    // Обновляем локальные данные комнаты
+                    currentRoom = joinData.room;
+                    
+                    showMessage('✅ Вы успешно присоединились к комнате!', 'success');
+                    
+                    // Обновляем отображение комнаты
             showRoomDetails(currentRoom.id);
+                    
+                } else {
+                    const errorData = await response.json();
+                    console.log('❌ ОШИБКА ПРИСОЕДИНЕНИЯ:', errorData);
+                    showMessage(`❌ ${errorData.error || 'Ошибка присоединения'}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('❌ ОШИБКА ПРИСОЕДИНЕНИЯ К КОМНАТЕ:', error);
+                showMessage('❌ Ошибка соединения с сервером', 'error');
+            }
         }
 
         function handleFinishGame() {
