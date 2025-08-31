@@ -172,6 +172,12 @@
             border: 1px solid rgba(244, 67, 54, 0.5);
             color: #f44336;
         }
+        
+        .message.warning {
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 152, 0, 0.5);
+            color: #ff9800;
+        }
 
         .room-header {
             text-align: center;
@@ -399,7 +405,7 @@
     </div>
 
     <script>
-        // Версия 9.5 - ВЫХОД ИЗ КОМНАТЫ + УМНЫЕ КНОПКИ УПРАВЛЕНИЯ
+        // Версия 9.6 - ОГРАНИЧЕНИЕ ОДНОЙ КОМНАТЫ + РАСФОРМИРОВАНИЕ ПРИ ВЫХОДЕ СОЗДАТЕЛЯ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
@@ -800,6 +806,15 @@
                                 updateStartGameButton(updatedRoom.member_count);
                             }
                         }
+                    } else if (response.status === 404) {
+                        // КОМНАТА БЫЛА УДАЛЕНА/РАСФОРМИРОВАНА
+                        console.log('⚠️ КОМНАТА РАСФОРМИРОВАНА!');
+                        showMessage('⚠️ Группа расформирована', 'warning');
+                        
+                        // Возвращаемся в главное меню
+                        currentRoom = null;
+                        stopRoomUpdates();
+                        showMainMenu();
                     }
                 } catch (error) {
                     console.log('⚠️ Ошибка автообновления комнаты:', error);
@@ -1265,8 +1280,13 @@
                     showRoomDetails(roomData.id);
                     
             } else {
-                    const errorText = await response.text();
-                    console.log('❌ ОШИБКА API:', response.status, errorText);
+                    const errorData = await response.json();
+                    console.log('❌ ОШИБКА API:', response.status, errorData);
+                    
+                    // Показываем ошибку пользователю
+                    showMessage(`❌ ${errorData.error || 'Ошибка создания комнаты'}`, 'error');
+                    return; // Прерываем выполнение, не создаем локально
+                    
                     // FALLBACK: создаем локально если API не работает
                     const newRoom = {
                         id: Date.now(),
@@ -1642,7 +1662,12 @@
                     const leaveData = await response.json();
                     console.log('✅ ПОКИНУЛИ КОМНАТУ:', leaveData);
                     
-                    showMessage('✅ Вы покинули комнату', 'success');
+                    // Проверяем была ли комната расформирована
+                    if (leaveData.room_disbanded) {
+                        showMessage('⚠️ Комната расформирована создателем', 'warning');
+                    } else {
+                        showMessage('✅ Вы покинули комнату', 'success');
+                    }
                     
                     // Возвращаемся в главное меню
                     currentRoom = null;
