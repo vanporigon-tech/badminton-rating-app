@@ -308,6 +308,23 @@
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
         </div>
 
+        <!-- Форма ввода имени -->
+        <div id="name-form" class="section" style="display: none;">
+            <h2>✏️ Ввод имени пользователя</h2>
+            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #fff; font-weight: bold;">Имя:</label>
+                    <input type="text" id="first-name-input" placeholder="Введите ваше имя" style="width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 16px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; color: #fff; font-weight: bold;">Фамилия (необязательно):</label>
+                    <input type="text" id="last-name-input" placeholder="Введите вашу фамилию" style="width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 16px; box-sizing: border-box;">
+                </div>
+                <button id="save-name-btn" class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">💾 Сохранить имя</button>
+                <button id="cancel-name-btn" class="btn btn-back" style="width: 100%;">❌ Отмена</button>
+            </div>
+        </div>
+
         <!-- Поиск игр -->
         <div id="search-games" class="section hidden">
             <h2>🔍 Поиск доступных игр</h2>
@@ -370,7 +387,7 @@
     </div>
 
     <script>
-        // Версия 8.6 - РУЧНОЙ ВВОД ИМЕНИ ПОЛЬЗОВАТЕЛЯ
+        // Версия 8.7 - КРАСИВАЯ ФОРМА ВВОДА ИМЕНИ
         const API_BASE_URL = 'http://localhost:8000'; // Только для локального тестирования
         
         // ПРИНУДИТЕЛЬНЫЙ СБРОС КЭША
@@ -835,12 +852,36 @@
             const enterNameBtn = document.getElementById('enter-name-btn');
             if (enterNameBtn) {
                 enterNameBtn.addEventListener('click', () => {
-                    console.log('✏️ ВВОД ИМЕНИ ПОЛЬЗОВАТЕЛЯ...');
-                    enterUserName();
+                    console.log('✏️ ПОКАЗ ФОРМЫ ВВОДА ИМЕНИ...');
+                    showNameForm();
                 });
                 console.log('✅ Кнопка ввода имени подключена');
             } else {
                 console.error('❌ Кнопка enter-name-btn не найдена!');
+            }
+
+            // Кнопка сохранения имени
+            const saveNameBtn = document.getElementById('save-name-btn');
+            if (saveNameBtn) {
+                saveNameBtn.addEventListener('click', () => {
+                    console.log('💾 СОХРАНЕНИЕ ИМЕНИ...');
+                    saveUserName();
+                });
+                console.log('✅ Кнопка сохранения имени подключена');
+            } else {
+                console.error('❌ Кнопка save-name-btn не найдена!');
+            }
+
+            // Кнопка отмены ввода имени
+            const cancelNameBtn = document.getElementById('cancel-name-btn');
+            if (cancelNameBtn) {
+                cancelNameBtn.addEventListener('click', () => {
+                    console.log('❌ ОТМЕНА ВВОДА ИМЕНИ...');
+                    showSection('main-menu');
+                });
+                console.log('✅ Кнопка отмены ввода имени подключена');
+            } else {
+                console.error('❌ Кнопка cancel-name-btn не найдена!');
             }
 
             // Back buttons
@@ -879,24 +920,45 @@
             showSection('main-menu');
         }
         
-        // Ввод имени пользователя
-        async function enterUserName() {
-            console.log('✏️ ЗАПРОС ИМЕНИ У ПОЛЬЗОВАТЕЛЯ...');
+        // Показать форму ввода имени
+        function showNameForm() {
+            console.log('✏️ ПОКАЗ ФОРМЫ ВВОДА ИМЕНИ...');
             
-            const firstName = prompt('Введите ваше имя:', currentUser?.first_name || '');
-            if (!firstName || firstName.trim() === '') {
-                console.log('❌ Имя не введено');
-                return;
+            // Заполняем поля текущими данными
+            const firstNameInput = document.getElementById('first-name-input');
+            const lastNameInput = document.getElementById('last-name-input');
+            
+            if (firstNameInput && currentUser) {
+                firstNameInput.value = currentUser.first_name || '';
+            }
+            if (lastNameInput && currentUser) {
+                lastNameInput.value = currentUser.last_name || '';
             }
             
-            const lastName = prompt('Введите вашу фамилию (необязательно):', currentUser?.last_name || '');
+            showSection('name-form');
+        }
+        
+        // Сохранить имя пользователя
+        async function saveUserName() {
+            console.log('💾 СОХРАНЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ...');
+            
+            const firstNameInput = document.getElementById('first-name-input');
+            const lastNameInput = document.getElementById('last-name-input');
+            
+            const firstName = firstNameInput ? firstNameInput.value.trim() : '';
+            const lastName = lastNameInput ? lastNameInput.value.trim() : '';
+            
+            if (!firstName) {
+                alert('❌ Пожалуйста, введите имя!');
+                return;
+            }
             
             // Создаем нового пользователя с введенными данными
             currentUser = {
                 id: currentUser?.id || Date.now(),
                 telegram_id: currentUser?.telegram_id || Date.now(),
-                first_name: firstName.trim(),
-                last_name: lastName ? lastName.trim() : '',
+                first_name: firstName,
+                last_name: lastName,
                 username: currentUser?.username || '',
                 rating: currentUser?.rating || 1500
             };
@@ -911,6 +973,9 @@
             
             // Обновляем отображение
             updateUserDisplay();
+            
+            // Возвращаемся в главное меню
+            showSection('main-menu');
             
             alert(`✅ Ваше имя сохранено!\n${currentUser.first_name} ${currentUser.last_name}`);
             
