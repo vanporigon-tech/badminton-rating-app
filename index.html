@@ -178,6 +178,99 @@
             border: 1px solid rgba(255, 152, 0, 0.5);
             color: #ff9800;
         }
+        
+        /* Стили для результатов игры */
+        .final-score {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+        
+        .final-score h3 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        
+        .rating-changes {
+            margin: 20px 0;
+        }
+        
+        .rating-results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .rating-item.winner {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .rating-item.loser {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .player-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .player-team {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .rating-change {
+            text-align: right;
+        }
+        
+        .rating-change-value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .rating-change-value.positive {
+            color: #28a745;
+        }
+        
+        .rating-change-value.negative {
+            color: #dc3545;
+        }
+        
+        .rating-change-value.neutral {
+            color: #6c757d;
+        }
+        
+        .old-rating, .new-rating {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .results-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
 
         .room-header {
             text-align: center;
@@ -402,10 +495,30 @@
             <button id="finish-game-btn" class="btn btn-primary">Завершить игру</button>
             <button id="back-to-room" class="btn btn-back">← Назад к комнате</button>
         </div>
+
+        <!-- Результаты игры с рейтингом -->
+        <div id="game-results" class="section hidden">
+            <h2>🏆 Результаты игры</h2>
+            <div class="final-score">
+                <h3>Финальный счет: <span id="final-score-display">0 - 0</span></h3>
+            </div>
+            
+            <div class="rating-changes">
+                <h4>📊 Изменения рейтинга:</h4>
+                <div id="rating-results-list" class="rating-results-list">
+                    <!-- Результаты рейтинга будут заполнены динамически -->
+                </div>
+            </div>
+            
+            <div class="results-controls">
+                <button id="back-to-room-after-game" class="btn btn-primary">Вернуться в комнату</button>
+                <button id="new-game-btn" class="btn btn-success">Новая игра</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Версия 9.6 - ОГРАНИЧЕНИЕ ОДНОЙ КОМНАТЫ + РАСФОРМИРОВАНИЕ ПРИ ВЫХОДЕ СОЗДАТЕЛЯ
+        // Версия 9.7 - СИСТЕМА РЕЙТИНГА GLICKO-2 + РЕЗУЛЬТАТЫ ИГРЫ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
@@ -1028,6 +1141,18 @@
 
             // Game result
             document.getElementById('finish-game-btn').addEventListener('click', handleFinishGame);
+            
+            // Game results
+            document.getElementById('back-to-room-after-game').addEventListener('click', () => {
+                showRoomDetails(currentRoom.id);
+            });
+            
+            document.getElementById('new-game-btn').addEventListener('click', () => {
+                // Сбрасываем счет
+                document.getElementById('score1-input').value = '0';
+                document.getElementById('score2-input').value = '0';
+                showSection('game-result');
+            });
         }
 
         function showSection(sectionId) {
@@ -1634,7 +1759,7 @@
                 showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
             }
-            
+
             if (!currentRoom) {
                 showMessage('ОШИБКА: комната не выбрана!', 'error');
                 return;
@@ -1686,20 +1811,107 @@
             }
         }
 
-        function handleFinishGame() {
-            const score1 = document.getElementById('score1-input').value;
-            const score2 = document.getElementById('score2-input').value;
+        async function handleFinishGame() {
+            const score1 = parseInt(document.getElementById('score1-input').value);
+            const score2 = parseInt(document.getElementById('score2-input').value);
 
-            if (!score1 || !score2) {
-                showMessage('Введите счет обеих команд', 'error');
+            if (isNaN(score1) || isNaN(score2) || score1 < 0 || score2 < 0) {
+                showMessage('Введите корректный счет обеих команд', 'error');
                 return;
             }
 
-            // Simulate game completion
-            showMessage('Игра завершена!', 'success');
+            console.log('🎮 ЗАВЕРШЕНИЕ ИГРЫ:', { score1, score2 });
+
+            try {
+                // Определяем команды на основе участников комнаты
+                const members = currentRoom.members || [];
+                const team1 = members.slice(0, Math.ceil(members.length / 2)).map(m => m.player.telegram_id);
+                const team2 = members.slice(Math.ceil(members.length / 2)).map(m => m.player.telegram_id);
+
+                const scoreData = {
+                    team1: team1,
+                    team2: team2,
+                    score1: score1,
+                    score2: score2
+                };
+
+                console.log('📊 ДАННЫЕ СЧЕТА:', scoreData);
+
+                // Отправляем данные на API
+                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/finish-game`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(scoreData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ ИГРА ЗАВЕРШЕНА:', result);
+                    
+                    // Обновляем данные комнаты
+                    currentRoom = result.room;
+                    
+                    // Показываем результаты с рейтингом
+                    showGameResults(result.rating_changes, score1, score2);
+                    
+                } else {
+                    const errorData = await response.json();
+                    console.log('❌ ОШИБКА ЗАВЕРШЕНИЯ ИГРЫ:', errorData);
+                    showMessage(`❌ ${errorData.error || 'Ошибка завершения игры'}`, 'error');
+                }
+
+            } catch (error) {
+                console.error('❌ ОШИБКА ЗАВЕРШЕНИЯ ИГРЫ:', error);
+                showMessage('❌ Ошибка завершения игры', 'error');
+            }
+        }
+
+        function showGameResults(ratingChanges, score1, score2) {
+            console.log('🏆 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ИГРЫ:', ratingChanges);
             
-            // Go back to room
-            showRoomDetails(currentRoom.id);
+            // Показываем секцию результатов
+            showSection('game-results');
+            
+            // Обновляем финальный счет
+            document.getElementById('final-score-display').textContent = `${score1} - ${score2}`;
+            
+            // Очищаем предыдущие результаты
+            const resultsList = document.getElementById('rating-results-list');
+            resultsList.innerHTML = '';
+            
+            // Создаем элементы для каждого игрока
+            Object.entries(ratingChanges).forEach(([playerId, change]) => {
+                const player = currentRoom.members.find(m => m.player.telegram_id == playerId);
+                if (!player) return;
+                
+                const playerName = `${player.player.first_name} ${player.player.last_name}`.trim();
+                const teamName = change.team === 1 ? 'Команда 1' : 'Команда 2';
+                const isWinner = change.won;
+                const ratingChange = change.rating_change;
+                
+                const ratingItem = document.createElement('div');
+                ratingItem.className = `rating-item ${isWinner ? 'winner' : 'loser'}`;
+                
+                const changeClass = ratingChange > 0 ? 'positive' : (ratingChange < 0 ? 'negative' : 'neutral');
+                const changeSymbol = ratingChange > 0 ? '+' : '';
+                
+                ratingItem.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-name">${playerName}</div>
+                        <div class="player-team">${teamName}</div>
+                    </div>
+                    <div class="rating-change">
+                        <div class="rating-change-value ${changeClass}">
+                            ${changeSymbol}${ratingChange}
+                        </div>
+                        <div class="old-rating">${change.old_rating} → ${change.new_rating}</div>
+                    </div>
+                `;
+                
+                resultsList.appendChild(ratingItem);
+            });
         }
 
         function showMessage(text, type) {
