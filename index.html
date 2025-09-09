@@ -854,28 +854,7 @@
                 console.log('❌ Ошибка чтения localStorage:', e);
             }
             
-            // 2. Пробуем получить через API твоего ID
-            try {
-                console.log('🔄 Пытаемся получить данные через API...');
-                const response = await fetch(`${API_BASE_URL}/players/972717950`);
-                if (response.ok) {
-                    const apiUser = await response.json();
-                    currentUser = {
-                        id: apiUser.telegram_id,
-                        telegram_id: apiUser.telegram_id,
-                        first_name: apiUser.first_name || 'Пользователь',
-                        last_name: apiUser.last_name || '',
-                        username: apiUser.username || '',
-                        rating: apiUser.rating || 1500
-                    };
-                    console.log('🎉 ДАННЫЕ ПОЛУЧЕНЫ ЧЕРЕЗ API:', currentUser);
-                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                    updateUserDisplay();
-                    return;
-                }
-            } catch (e) {
-                console.log('❌ Ошибка API запроса:', e);
-            }
+            // 2. API игроков не используется по ТЗ - только статические файлы и localStorage
             
             // 3. Последний fallback - запрашиваем имя у пользователя
             console.log('❌ Все автоматические способы неудачны, запрашиваем имя...');
@@ -912,31 +891,7 @@
         }
         
         // Функция для обновления данных пользователя в базе
-        async function updateUserInDatabase(userData) {
-            try {
-                console.log('📝 Обновляем пользователя в базе данных:', userData);
-                const response = await fetch(`${API_BASE_URL}/players/${userData.telegram_id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        first_name: userData.first_name,
-                        last_name: userData.last_name
-                    })
-                });
-                
-                if (response.ok) {
-                    const updated = await response.json();
-                    console.log('✅ Пользователь обновлен в базе:', updated);
-                    return updated;
-                } else {
-                    console.log('❌ Не удалось обновить пользователя в базе');
-                    return null;
-                }
-            } catch (error) {
-                console.log('❌ Ошибка обновления в базе:', error);
-                return null;
-            }
-        }
+        // Функция обновления в базе данных удалена - используется только localStorage
         
         // Функция для принудительного обновления имени пользователя
         async function forceUpdateUserName(firstName, lastName) {
@@ -960,8 +915,7 @@
                 console.log('⚠️ Не удалось сохранить в localStorage');
             }
             
-            // Обновляем в базе данных
-            await updateUserInDatabase(currentUser);
+            // База данных не используется - только localStorage
             
             console.log('✅ Имя пользователя обновлено везде:', currentUser);
             return true;
@@ -1056,33 +1010,7 @@
             return 'Неизвестный игрок';
         }
 
-        // ФУНКЦИЯ ДЛЯ СОЗДАНИЯ/ОБНОВЛЕНИЯ ПОЛЬЗОВАТЕЛЯ В API
-        async function createOrUpdatePlayerInAPI(user) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/players/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        telegram_id: user.telegram_id || user.id,
-                        first_name: user.first_name,
-                        last_name: user.last_name,
-                        username: user.username
-                    })
-                });
-                
-                if (response.ok) {
-                    const playerData = await response.json();
-                    console.log('✅ Пользователь создан/обновлен в API:', playerData);
-                    return playerData;
-                } else {
-                    console.error('❌ Ошибка создания пользователя:', response.status);
-                }
-            } catch (error) {
-                console.error('❌ Ошибка API пользователя:', error);
-            }
-        }
+        // API пользователей удален - используется только localStorage
 
         // ФУНКЦИИ ДЛЯ РАБОТЫ С ЛОКАЛЬНЫМИ КОМНАТАМИ
         function saveRoomToLocalStorage(room) {
@@ -2268,6 +2196,199 @@
                 
                 resultsList.appendChild(ratingItem);
             });
+        }
+
+        // ФУНКЦИЯ НАЧАЛА ИГРЫ
+        function handleStartGame() {
+            console.log('🎮 НАЧАЛО ИГРЫ');
+            
+            if (!currentRoom || !currentRoom.members) {
+                showMessage('❌ Ошибка: данные комнаты недоступны', 'error');
+                return;
+            }
+            
+            const playerCount = currentRoom.members.length;
+            
+            if (playerCount < 2) {
+                showMessage('❌ Недостаточно игроков (Нужно 2 или 4)', 'error');
+                return;
+            }
+            
+            if (playerCount === 3) {
+                showMessage('❌ Недостаточно игроков (Нужно 2 или 4)', 'error');
+                return;
+            }
+            
+            if (playerCount > 4) {
+                showMessage('❌ Слишком много игроков (Максимум 4)', 'error');
+                return;
+            }
+            
+            // Настраиваем интерфейс ввода результата в зависимости от количества игроков
+            if (playerCount === 2) {
+                // 1v1 - показываем имена игроков
+                const player1 = currentRoom.members[0];
+                const player2 = currentRoom.members[1];
+                
+                document.getElementById('team1-name').textContent = getDisplayName(player1.player);
+                document.getElementById('team2-name').textContent = getDisplayName(player2.player);
+            } else if (playerCount === 4) {
+                // 2v2 - показываем команды (пока простая логика)
+                const team1 = [currentRoom.members[0], currentRoom.members[1]];
+                const team2 = [currentRoom.members[2], currentRoom.members[3]];
+                
+                document.getElementById('team1-name').textContent = 
+                    `${getDisplayName(team1[0].player)} + ${getDisplayName(team1[1].player)}`;
+                document.getElementById('team2-name').textContent = 
+                    `${getDisplayName(team2[0].player)} + ${getDisplayName(team2[1].player)}`;
+            }
+            
+            // Сбрасываем счет
+            document.getElementById('score1-input').value = '0';
+            document.getElementById('score2-input').value = '0';
+            
+            showSection('game-result');
+            console.log('✅ Игра началась');
+        }
+        
+        // ФУНКЦИЯ ЗАВЕРШЕНИЯ ИГРЫ С РАСЧЕТОМ GLICKO-2 РЕЙТИНГА
+        async function handleFinishGame() {
+            console.log('🏁 ЗАВЕРШЕНИЕ ИГРЫ');
+            
+            if (!currentRoom || !currentRoom.members) {
+                showMessage('❌ Ошибка: данные комнаты недоступны', 'error');
+                return;
+            }
+            
+            const playerCount = currentRoom.members.length;
+            
+            if (playerCount !== 2 && playerCount !== 4) {
+                showMessage('❌ Игра возможна только для 2 или 4 игроков', 'error');
+                return;
+            }
+            
+            // Получаем счет
+            const score1 = parseInt(document.getElementById('score1-input').value) || 0;
+            const score2 = parseInt(document.getElementById('score2-input').value) || 0;
+            
+            if (score1 === 0 && score2 === 0) {
+                showMessage('❌ Введите счет игры', 'error');
+                return;
+            }
+            
+            // Определяем победителей
+            const team1Won = score1 > score2;
+            
+            // Логика для 1v1
+            if (playerCount === 2) {
+                const player1 = currentRoom.members[0];
+                const player2 = currentRoom.members[1];
+                
+                const results = calculateGlicko2Rating([player1.player], [player2.player], team1Won);
+                
+                // Сохраняем результаты для показа
+                const gameResults = [
+                    {
+                        name: getDisplayName(player1.player),
+                        old_rating: player1.player.rating,
+                        new_rating: results.team1[0].rating,
+                        change: results.team1[0].rating - player1.player.rating
+                    },
+                    {
+                        name: getDisplayName(player2.player),
+                        old_rating: player2.player.rating,
+                        new_rating: results.team2[0].rating,
+                        change: results.team2[0].rating - player2.player.rating
+                    }
+                ];
+                
+                showGameResults(gameResults, `${score1}:${score2}`);
+            }
+            
+            // Логика для 2v2
+            else if (playerCount === 4) {
+                // Пока сохраняем простую логику - первые 2 vs последние 2
+                const team1 = [currentRoom.members[0], currentRoom.members[1]];
+                const team2 = [currentRoom.members[2], currentRoom.members[3]];
+                
+                const results = calculateGlicko2Rating(
+                    team1.map(m => m.player),
+                    team2.map(m => m.player),
+                    team1Won
+                );
+                
+                // Сохраняем результаты для показа
+                const gameResults = [
+                    ...team1.map((member, i) => ({
+                        name: getDisplayName(member.player),
+                        old_rating: member.player.rating,
+                        new_rating: results.team1[i].rating,
+                        change: results.team1[i].rating - member.player.rating
+                    })),
+                    ...team2.map((member, i) => ({
+                        name: getDisplayName(member.player),
+                        old_rating: member.player.rating,
+                        new_rating: results.team2[i].rating,
+                        change: results.team2[i].rating - member.player.rating
+                    }))
+                ];
+                
+                showGameResults(gameResults, `${score1}:${score2}`);
+            }
+            
+            console.log('✅ Игра завершена, рейтинги обновлены');
+        }
+        
+        // ФУНКЦИЯ РАСЧЕТА РЕЙТИНГА GLICKO-2
+        function calculateGlicko2Rating(team1Players, team2Players, team1Won) {
+            const K = 32; // Коэффициент изменения рейтинга
+            
+            // Упрощенная реализация Glicko-2 для MVP
+            const avgRating1 = team1Players.reduce((sum, p) => sum + (p.rating || 1500), 0) / team1Players.length;
+            const avgRating2 = team2Players.reduce((sum, p) => sum + (p.rating || 1500), 0) / team2Players.length;
+            
+            const ratingDiff = avgRating1 - avgRating2;
+            const expectedScore1 = 1 / (1 + Math.pow(10, -ratingDiff / 400));
+            const actualScore1 = team1Won ? 1 : 0;
+            
+            const ratingChange = K * (actualScore1 - expectedScore1);
+            
+            // Применяем изменения к игрокам
+            const newTeam1 = team1Players.map(player => ({
+                ...player,
+                rating: Math.round((player.rating || 1500) + ratingChange)
+            }));
+            
+            const newTeam2 = team2Players.map(player => ({
+                ...player,
+                rating: Math.round((player.rating || 1500) - ratingChange)
+            }));
+            
+            return {
+                team1: newTeam1,
+                team2: newTeam2
+            };
+        }
+        
+        // ФУНКЦИЯ ПОКАЗА РЕЗУЛЬТАТОВ ИГРЫ
+        function showGameResults(results, score) {
+            console.log('🏆 Показываем результаты игры:', results);
+            
+            // Обновляем элементы результатов
+            document.getElementById('final-score-display').textContent = score;
+            
+            const resultsContainer = document.getElementById('rating-results-list');
+            resultsContainer.innerHTML = results.map(result => `
+                <div class="player-result">
+                    <div class="player-name">${result.name}</div>
+                    <div class="rating-change ${result.change >= 0 ? 'positive' : 'negative'}">
+                        ${result.change >= 0 ? '+' : ''}${result.change}
+                    </div>
+                    <div class="old-rating">${result.old_rating} → ${result.new_rating}</div>
+                </div>
+            `).join('');
+            
+            showSection('game-results');
         }
 
         function showMessage(text, type) {
