@@ -1,0 +1,11 @@
+{
+  "tournament_id": 1,
+  "tournament": {
+    "id": 1,
+    "start_time": "2025-09-07T17:50:00.000000",
+    "status": "finished",
+    "end_time": "2025-09-07T18:00:00.000000"
+  },
+  "games": [],
+  "message": "Данные турнира #1"
+}

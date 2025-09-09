@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "Комната Ивана",
+    "creator_id": 972717950,
+    "creator_full_name": "Иван",
+    "max_players": 4,
+    "member_count": 1,
+    "is_active": true,
+    "created_at": "2025-09-07T17:50:19.161637",
+    "members": [
+      {
+        "id": 1,
+        "player": {
+          "id": 972717950,
+          "telegram_id": 972717950,
+          "first_name": "Иван",
+          "last_name": "Игрок",
+          "username": "ivan_player",
+          "rating": 1500
+        },
+        "is_leader": true,
+        "joined_at": "2025-09-07T17:50:19.161643"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Комната Друга",
+    "creator_id": 555666777,
+    "creator_full_name": "Друг",
+    "max_players": 4,
+    "member_count": 1,
+    "is_active": true,
+    "created_at": "2025-09-07T17:50:57.415320",
+    "members": [
+      {
+        "id": 1,
+        "player": {
+          "id": 555666777,
+          "telegram_id": 555666777,
+          "first_name": "Друг",
+          "last_name": "Игрок",
+          "username": "friend_player",
+          "rating": 1500
+        },
+        "is_leader": true,
+        "joined_at": "2025-09-07T17:50:57.415322"
+      }
+    ]
+  }
+]

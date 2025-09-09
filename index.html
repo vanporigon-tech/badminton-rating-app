@@ -477,6 +477,11 @@
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <h4 style="text-align: center; margin-bottom: 15px; color: #ffd700;">🏆 Турниры</h4>
+                <button id="start-tournament-btn" class="btn btn-tournament" style="background: linear-gradient(45deg, #ffd700, #ffed4e); color: #333; margin: 5px;">🏆 Начать турнир</button>
+                <button id="end-tournament-btn" class="btn btn-tournament" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e); color: white; margin: 5px;">🏁 Завершить турнир</button>
+            </div>
         </div>
 
 
@@ -594,7 +599,7 @@
         // Версия 9.8 - ИНТЕРФЕЙС ВВОДА РЕЗУЛЬТАТОВ С ИМЕНАМИ ИГРОКОВ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const API_BASE_URL = isLocalhost ? 'http://localhost:8000' : 'https://badminton-api-vercel.vercel.app';
+        const API_BASE_URL = 'https://vanporigon-tech.github.io/badminton-rating-app';
         
         // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
         console.log('🌐 Текущий хост:', window.location.hostname);
@@ -971,13 +976,14 @@
                 clearInterval(roomUpdateInterval);
             }
             
-            // Запускаем обновления каждые 5 секунд
+            // Запускаем обновления каждые 3 секунды
             roomUpdateInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
-                    if (response.ok) {
-                        const updatedRoom = await response.json();
-                        
+                    // Загружаем синхронизированные комнаты
+                    const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
+                    const updatedRoom = syncRooms.find(room => room.id === roomId);
+                    
+                    if (updatedRoom) {
                         // Проверяем изменилось ли количество участников
                         if (currentRoom && updatedRoom.member_count !== currentRoom.member_count) {
                             console.log('👥 Обновление участников комнаты:', updatedRoom.member_count);
@@ -993,7 +999,7 @@
                                 updateStartGameButton(updatedRoom.member_count);
                             }
                         }
-                    } else if (response.status === 404) {
+                    } else {
                         // КОМНАТА БЫЛА УДАЛЕНА/РАСФОРМИРОВАНА
                         console.log('⚠️ КОМНАТА РАСФОРМИРОВАНА!');
                         showMessage('⚠️ Группа расформирована', 'warning');
@@ -1006,7 +1012,7 @@
                 } catch (error) {
                     console.log('⚠️ Ошибка автообновления комнаты:', error);
                 }
-            }, 5000); // каждые 5 секунд
+            }, 3000); // каждые 3 секунды
             
             console.log('🔄 Автообновление комнаты запущено');
         }
@@ -1130,6 +1136,11 @@
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🚀 Инициализация Mini App...');
             
+            // ОЧИЩАЕМ СТАРЫЕ ДАННЫЕ ПРИ ЗАГРУЗКЕ
+            console.log('🧹 Очищаем старые данные при загрузке');
+            localStorage.removeItem('badminton_static_rooms');
+            localStorage.removeItem('badminton_local_rooms');
+            
             // Инициализируем пользователя ПЕРВЫМ ДЕЛОМ
             await initializeUser();
             
@@ -1230,6 +1241,17 @@
             
             // Подтверждение команд
             document.getElementById('confirm-teams-btn').addEventListener('click', confirmTeams);
+            
+            // Турниры
+            const startTournamentBtn = document.getElementById('start-tournament-btn');
+            if (startTournamentBtn) {
+                startTournamentBtn.addEventListener('click', startTournament);
+            }
+            
+            const endTournamentBtn = document.getElementById('end-tournament-btn');
+            if (endTournamentBtn) {
+                endTournamentBtn.addEventListener('click', endTournament);
+            }
         }
 
         function showSection(sectionId) {
@@ -1255,8 +1277,128 @@
             }
             updateUserDisplay(); // Обновляем отображение пользователя
             showSection('main-menu');
+            
+            // Проверяем активный турнир
+            const tournamentId = localStorage.getItem('current_tournament_id');
+            if (tournamentId) {
+                const tournamentInfo = JSON.parse(localStorage.getItem(`tournament_${tournamentId}`) || '{}');
+                if (tournamentInfo.status === 'active') {
+                    showMessage(`🏆 Турнир #${tournamentId} активен! Все игры записываются.`, 'success');
+                }
+            }
         }
         
+        // Функции для работы с турнирами
+        function startTournament() {
+            const tournamentId = Date.now();
+            const tournamentInfo = {
+                id: tournamentId,
+                status: 'active',
+                start_time: new Date().toISOString(),
+                games: []
+            };
+            
+            localStorage.setItem('current_tournament_id', tournamentId);
+            localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
+            localStorage.setItem(`tournament_${tournamentId}_games`, JSON.stringify([]));
+            
+            showMessage(`🏆 Турнир #${tournamentId} начат! Все игры будут записываться.`, 'success');
+            console.log('🏆 Турнир начат:', tournamentInfo);
+        }
+        
+        function endTournament() {
+            const tournamentId = localStorage.getItem('current_tournament_id');
+            if (!tournamentId) {
+                showMessage('❌ Нет активного турнира', 'error');
+                return;
+            }
+            
+            const tournamentInfo = JSON.parse(localStorage.getItem(`tournament_${tournamentId}`) || '{}');
+            tournamentInfo.status = 'finished';
+            tournamentInfo.end_time = new Date().toISOString();
+            
+            localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
+            localStorage.removeItem('current_tournament_id');
+            
+            const games = JSON.parse(localStorage.getItem(`tournament_${tournamentId}_games`) || '[]');
+            
+            showMessage(`🏆 Турнир #${tournamentId} завершен! Игр сыграно: ${games.length}`, 'success');
+            console.log('🏆 Турнир завершен:', tournamentInfo, 'Игр:', games.length);
+            
+            // Показываем статистику турнира
+            showTournamentStats(tournamentId, games);
+        }
+        
+        function showTournamentStats(tournamentId, games) {
+            const stats = calculateTournamentStats(games);
+            
+            let statsHtml = `
+                <h3>🏆 Статистика турнира #${tournamentId}</h3>
+                <p>Игр сыграно: ${games.length}</p>
+                <p>Участников: ${stats.players.size}</p>
+                <h4>Рейтинг игроков:</h4>
+                <ol>
+            `;
+            
+            // Сортируем игроков по рейтингу
+            const sortedPlayers = Array.from(stats.players.entries())
+                .sort((a, b) => b[1].rating - a[1].rating);
+            
+            sortedPlayers.forEach(([playerId, player], index) => {
+                const change = player.rating - 1500;
+                const changeText = change > 0 ? `+${change.toFixed(0)}` : change.toFixed(0);
+                statsHtml += `
+                    <li>
+                        ${index + 1}. ${player.name} - ${player.rating.toFixed(0)} 
+                        <span style="color: ${change > 0 ? 'green' : 'red'}">(${changeText})</span>
+                    </li>
+                `;
+            });
+            
+            statsHtml += '</ol>';
+            
+            // Показываем в модальном окне
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 1000;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; max-height: 80vh; overflow-y: auto;">
+                    ${statsHtml}
+                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Закрыть
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function calculateTournamentStats(games) {
+            const players = new Map();
+            
+            games.forEach(game => {
+                Object.values(game.rating_changes).forEach(change => {
+                    if (!players.has(change.player_id)) {
+                        players.set(change.player_id, {
+                            name: `Игрок ${change.player_id}`,
+                            rating: 1500,
+                            games: 0,
+                            wins: 0
+                        });
+                    }
+                    
+                    const player = players.get(change.player_id);
+                    player.rating = change.new_rating;
+                    player.games++;
+                    if (change.won) player.wins++;
+                });
+            });
+            
+            return { players };
+        }
+
         // Ввод имени пользователя (оптимизированный для компьютера)
         async function enterUserName() {
             console.log('✏️ ЗАПРОС ИМЕНИ У ПОЛЬЗОВАТЕЛЯ (КОМПЬЮТЕР)...');
@@ -1382,30 +1524,54 @@
         }
 
         async function loadRooms() {
-            console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ ИЗ API');
+            console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ');
             const roomsList = document.getElementById('rooms-list');
             
             try {
-                // API ВСЕГДА ДОСТУПЕН
-                console.log('🌐 Загружаем комнаты из API:', API_BASE_URL);
+                // Загружаем комнаты с сервера
+                console.log('🌐 Загружаем комнаты с сервера:', API_BASE_URL);
                 
-                // ПОЛУЧАЕМ КОМНАТЫ ИЗ API
-                const response = await fetch(`${API_BASE_URL}/rooms/`);
+                const response = await fetch(`${API_BASE_URL}/api/rooms.json`);
+                let serverRooms = [];
                 
-                if (!response.ok) {
-                    console.log('❌ ОШИБКА API:', response.status);
-                    throw new Error('Переключаемся на локальные данные');
+                if (response.ok) {
+                    serverRooms = await response.json();
+                    console.log('✅ КОМНАТЫ С СЕРВЕРА:', serverRooms);
+                    
+                    // Если сервер пустой, очищаем localStorage (команда /clear_rooms)
+                    if (serverRooms.length === 0) {
+                        console.log('🧹 Сервер пустой - очищаем localStorage');
+                        localStorage.removeItem('badminton_sync_rooms');
+                        localStorage.removeItem('badminton_static_rooms');
+                        localStorage.removeItem('badminton_local_rooms');
+                    }
                 }
                 
-                const rooms = await response.json();
-                console.log('✅ КОМНАТЫ ЗАГРУЖЕНЫ ИЗ API:', rooms);
+                // Если сервер пустой, не добавляем комнаты из localStorage
+                let allRooms = [...serverRooms];
                 
-                if (!rooms || rooms.length === 0) {
-                    roomsList.innerHTML = '<p>Нет доступных комнат</p>';
+                // Добавляем комнаты из localStorage только если сервер НЕ пустой
+                if (serverRooms.length > 0) {
+                    const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
+                    console.log('✅ СИНХРОНИЗИРОВАННЫЕ КОМНАТЫ:', syncRooms);
+                    
+                    syncRooms.forEach(syncRoom => {
+                        if (!allRooms.find(room => room.id === syncRoom.id)) {
+                            allRooms.push(syncRoom);
+                        }
+                    });
+                } else {
+                    console.log('🧹 Сервер пустой - игнорируем localStorage');
+                }
+                
+                console.log('✅ ВСЕГО КОМНАТ:', allRooms.length);
+                
+                if (allRooms.length === 0) {
+                    roomsList.innerHTML = '<p>Нет доступных комнат<br><small>✨ Создайте комнату, чтобы она появилась здесь!</small></p>';
                     return;
                 }
 
-                const roomsHtml = rooms.map(room => `
+                const roomsHtml = allRooms.map(room => `
                     <div class="room-item" onclick="showRoomDetails(${room.id})">
                         <div class="room-name">${room.name}</div>
                         <div class="room-info">Участников: ${room.member_count || 1}/4</div>
@@ -1416,28 +1582,12 @@
                 
             } catch (error) {
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТ:', error);
-                
-                                // FALLBACK: показываем локальные комнаты
-                const localRooms = getLocalRooms();
-                
-                if (localRooms.length === 0) {
-                    roomsList.innerHTML = '<p>Нет доступных комнат<br><small>✨ Создайте комнату, чтобы она появилась здесь!</small></p>';
-                    return;
-                }
-
-                const roomsHtml = localRooms.map(room => `
-                    <div class="room-item" onclick="showRoomDetails(${room.id})">
-                        <div class="room-name">${room.name}</div>
-                        <div class="room-info">Участников: ${room.member_count || 1}/4</div>
-                    </div>
-                `).join('');
-
-                roomsList.innerHTML = roomsHtml;
+                roomsList.innerHTML = '<p>❌ Ошибка загрузки комнат<br><small>Попробуйте обновить страницу</small></p>';
             }
         }
 
         async function handleCreateRoom() {
-            console.log('➕ СОЗДАНИЕ КОМНАТЫ С API');
+            console.log('➕ СОЗДАНИЕ КОМНАТЫ С СИНХРОНИЗАЦИЕЙ');
             console.log('👤 currentUser:', currentUser);
             
             if (!currentUser) {
@@ -1450,206 +1600,119 @@
             const roomName = getDisplayName(currentUser);
             console.log('📝 СОЗДАЕМ КОМНАТУ:', roomName);
             
-            try {
-                // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
-                console.log('🌐 Создаем комнату через API:', API_BASE_URL);
-                
-                // СНАЧАЛА СОЗДАЕМ/ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ В API
-                console.log('👤 Создаем пользователя:', currentUser);
-                await createOrUpdatePlayerInAPI(currentUser);
-                
-                // СОЗДАЕМ КОМНАТУ ЧЕРЕЗ API
-                const response = await fetch(`${API_BASE_URL}/rooms/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: roomName,
-                        creator_telegram_id: currentUser.telegram_id || currentUser.id,
-                        max_players: 4
-                    })
-                });
-
-                console.log('📡 Response status:', response.status);
-                
-                if (response.ok) {
-                    const roomData = await response.json();
-                    console.log('✅ КОМНАТА СОЗДАНА В API:', roomData);
-                    
-                    currentRoom = roomData;
-                    showMessage(`✅ Комната "${roomName}" создана!`, 'success');
-                    showRoomDetails(roomData.id);
-                    
-            } else {
-                    const errorData = await response.json();
-                    console.log('❌ ОШИБКА API:', response.status, errorData);
-                    
-                    // Показываем ошибку пользователю
-                    showMessage(`❌ ${errorData.error || 'Ошибка создания комнаты'}`, 'error');
-                    return; // Прерываем выполнение, не создаем локально
-                    
-                    // FALLBACK: создаем локально если API не работает
-                    const newRoom = {
-                        id: Date.now(),
-                        name: roomName,
-                        creator_id: currentUser.telegram_id || currentUser.id,
-                        creator_full_name: roomName,
-                        member_count: 1,
-                        members: [{
-                            id: currentUser.id,
-                            player: {
-                                first_name: currentUser.first_name,
-                                last_name: currentUser.last_name
-                            },
-                            is_leader: true
-                        }]
-                    };
-                    
-                    // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
-                    saveRoomToLocalStorage(newRoom);
-                    
-                    currentRoom = newRoom;
-                    console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
-                    showMessage(`✅ Комната "${roomName}" создана локально!`, 'success');
-                    showRoomDetails(newRoom.id);
-                }
-                
-            } catch (error) {
-                console.error('❌ ОШИБКА СОЗДАНИЯ КОМНАТЫ:', error);
-                
-                // FALLBACK: создаем локально если API не работает
+            // Создаем комнату с уникальным ID
             const newRoom = {
                 id: Date.now(),
                 name: roomName,
-                    creator_id: currentUser.telegram_id || currentUser.id,
-                    creator_full_name: roomName,
-                    member_count: 1,
-                    members: [{
-                        id: currentUser.id,
-                        player: {
-                            first_name: currentUser.first_name,
-                            last_name: currentUser.last_name
-                        },
-                        is_leader: true
-                    }]
-                };
+                creator_id: currentUser.telegram_id || currentUser.id,
+                creator_full_name: roomName,
+                max_players: 4,
+                member_count: 1,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                members: [{
+                    id: 1,
+                    player: {
+                        id: currentUser.telegram_id || currentUser.id,
+                        telegram_id: currentUser.telegram_id || currentUser.id,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username,
+                        rating: 1500
+                    },
+                    is_leader: true,
+                    joined_at: new Date().toISOString()
+                }]
+            };
+            
+            // СОХРАНЯЕМ КОМНАТУ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
+            try {
+                // Получаем существующие синхронизированные комнаты
+                const existingRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
                 
-                // СОХРАНЯЕМ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
-                saveRoomToLocalStorage(newRoom);
+                // Добавляем новую комнату
+                existingRooms.push(newRoom);
+                
+                // Сохраняем обновленный список
+                localStorage.setItem('badminton_sync_rooms', JSON.stringify(existingRooms));
+                
+                console.log('✅ КОМНАТА ДОБАВЛЕНА В СИНХРОНИЗАЦИЮ:', newRoom);
+                
+            } catch (error) {
+                console.error('❌ Ошибка синхронизации:', error);
+            }
+            
+            // СОХРАНЯЕМ В LOCALSTORAGE
+            saveRoomToLocalStorage(newRoom);
 
             currentRoom = newRoom;
-                console.log('✅ КОМНАТА СОЗДАНА ЛОКАЛЬНО (FALLBACK):', currentRoom);
-                showMessage(`✅ Комната "${roomName}" создана локально!`, 'success');
+            console.log('✅ КОМНАТА СОЗДАНА:', currentRoom);
+            showMessage(`✅ Комната "${roomName}" создана!`, 'success');
             showRoomDetails(newRoom.id);
-            }
         }
 
         async function showRoomDetails(roomId) {
-            console.log('🏠 ПОКАЗЫВАЕМ КОМНАТУ С API:', roomId);
+            console.log('🏠 ПОКАЗЫВАЕМ КОМНАТУ:', roomId);
             
             if (!currentUser) {
                 showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
             }
             
-            try {
-                // ЗАГРУЖАЕМ КОМНАТУ ИЗ API
-                console.log('🌐 Загружаем комнату из API:', API_BASE_URL);
-                
-                // ПОЛУЧАЕМ ДАННЫЕ КОМНАТЫ ИЗ API
-                const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`);
-                
-                if (!response.ok) {
-                    console.log('❌ ОШИБКА API:', response.status);
-                    throw new Error('Комната не найдена в API');
-                }
-                
-                const room = await response.json();
-                console.log('✅ КОМНАТА ЗАГРУЖЕНА ИЗ API:', room);
-                
-                currentRoom = room;
-
-                const userName = getDisplayName(currentUser);
-                
-                // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
-                document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
-                document.getElementById('member-count').textContent = room.member_count || '1';
-                
-                // ПОКАЗЫВАЕМ УЧАСТНИКОВ ИЗ API
-                if (room.members && room.members.length > 0) {
-                    // ИСПОЛЬЗУЕМ РЕАЛЬНЫЕ ДАННЫЕ ИЗ API
-                    console.log('👥 Участники из API:', room.members);
-                    displayMembersList(room.members);
-                    } else {
-                    // FALLBACK: создаем данные для текущего пользователя
-                    const fallbackMembers = [{
-                        id: 1,
-                        player: {
-                            id: currentUser.telegram_id || currentUser.id,
-                            telegram_id: currentUser.telegram_id || currentUser.id,
-                            first_name: currentUser.first_name,
-                            last_name: currentUser.last_name,
-                            username: currentUser.username,
-                            rating: 1500
-                        },
-                        is_leader: true,
-                        joined_at: new Date().toISOString()
-                    }];
-                    console.log('👥 Участники FALLBACK:', fallbackMembers);
-                    displayMembersList(fallbackMembers);
-                }
-                
-                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ
-                updateRoomControls(room, currentUser);
-                
-                // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                updateStartGameButton(room.member_count || room.members?.length || 0);
-                
-                console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
-                showSection('room-details');
-                
-                // ЗАПУСКАЕМ АВТООБНОВЛЕНИЕ КОМНАТЫ
-                startRoomUpdates(room.id);
-
-            } catch (error) {
-                console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТЫ:', error);
-                
-                // FALLBACK: используем локальные данные если API не работает
-                const localRoom = getLocalRoomById(roomId);
-                if (!localRoom && (!currentRoom || currentRoom.id !== roomId)) {
-                    console.log('❌ Комната не найдена локально');
-                    showMessage('Комната не найдена', 'error');
-                    return;
-                }
-                
-                const room = localRoom || currentRoom;
-                
-                const userName = getDisplayName(currentUser);
-                
-                // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
-                document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
-                document.getElementById('member-count').textContent = room.member_count || '1';
-                
-                // ПОКАЗЫВАЕМ УЧАСТНИКОВ
-                const members = room.members || [{
-                    player_id: currentUser.id,
-                    is_leader: true,
-                    name: userName,
-                    rating: 'B+'
-                }];
-                
-                displayMembersList(members);
-                
-                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ
-                updateRoomControls(localRoom || currentRoom, currentUser);
-                
-                // НАСТРАИВАЕМ КНОПКУ ИГРЫ
-                updateStartGameButton(localRoom?.member_count || fallbackData.roomMembers?.length || 0);
-
-                console.log('✅ КОМНАТА ОТОБРАЖЕНА (FALLBACK):', currentRoom);
-                showSection('room-details');
+            // Ищем комнату в локальных данных
+            const localRoom = getLocalRoomById(roomId);
+            const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
+            const staticRoom = staticRooms.find(room => room.id === roomId);
+            
+            const room = localRoom || staticRoom;
+            
+            if (!room) {
+                console.log('❌ Комната не найдена');
+                showMessage('Комната не найдена', 'error');
+                return;
             }
+            
+            currentRoom = room;
+            const userName = getDisplayName(currentUser);
+            
+            // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
+            document.getElementById('room-leader-name').textContent = room.creator_full_name || room.name || userName;
+            document.getElementById('member-count').textContent = room.member_count || '1';
+            
+            // ПОКАЗЫВАЕМ УЧАСТНИКОВ
+            if (room.members && room.members.length > 0) {
+                console.log('👥 Участники:', room.members);
+                displayMembersList(room.members);
+                    } else {
+                // FALLBACK: создаем данные для текущего пользователя
+                const fallbackMembers = [{
+                    id: 1,
+                    player: {
+                        id: currentUser.telegram_id || currentUser.id,
+                        telegram_id: currentUser.telegram_id || currentUser.id,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username,
+                        rating: 1500
+                    },
+                    is_leader: true,
+                    joined_at: new Date().toISOString()
+                }];
+                console.log('👥 Участники FALLBACK:', fallbackMembers);
+                displayMembersList(fallbackMembers);
+            }
+            
+            // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ
+            updateRoomControls(room, currentUser);
+            
+            // НАСТРАИВАЕМ КНОПКУ ИГРЫ
+            updateStartGameButton(room.member_count || room.members?.length || 0);
+            
+            console.log('✅ КОМНАТА ОТОБРАЖЕНА:', currentRoom);
+                showSection('room-details');
+
+            // ЗАПУСКАЕМ АВТООБНОВЛЕНИЕ КОМНАТЫ
+            startRoomUpdates(room.id);
         }
 
         function displayMembersList(members) {
@@ -1912,53 +1975,57 @@
                 return;
             }
             
-            try {
-                // СНАЧАЛА СОЗДАЕМ/ОБНОВЛЯЕМ ПОЛЬЗОВАТЕЛЯ В API
-                await createOrUpdatePlayerInAPI(currentUser);
-                
-                // ПРИСОЕДИНЯЕМСЯ К КОМНАТЕ ЧЕРЕЗ API
-                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/join`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        telegram_id: currentUser.telegram_id || currentUser.id,
-                        first_name: currentUser.first_name,
-                        last_name: currentUser.last_name,
-                        username: currentUser.username
-                    })
-                });
-                
-                console.log('📡 Join Response status:', response.status);
-                
-                if (response.ok) {
-                    const joinData = await response.json();
-                    console.log('✅ ПРИСОЕДИНИЛИСЬ К КОМНАТЕ:', joinData);
-                    
-                    // Обновляем локальные данные комнаты
-                    currentRoom = joinData.room;
-                    
-                    showMessage('✅ Вы успешно присоединились к комнате!', 'success');
-                    
-                    // Обновляем отображение комнаты
-            showRoomDetails(currentRoom.id);
-                    
-                } else {
-                    const errorData = await response.json();
-                    console.log('❌ ОШИБКА ПРИСОЕДИНЕНИЯ:', errorData);
-                    showMessage(`❌ ${errorData.error || 'Ошибка присоединения'}`, 'error');
-                }
-                
-            } catch (error) {
-                console.error('❌ ОШИБКА ПРИСОЕДИНЕНИЯ К КОМНАТЕ:', error);
-                showMessage('❌ Ошибка соединения с сервером', 'error');
+            // Проверяем не полная ли комната
+            if (currentRoom.member_count >= currentRoom.max_players) {
+                showMessage('❌ Комната заполнена!', 'error');
+                return;
             }
+            
+            // Добавляем игрока в комнату локально
+            const newMember = {
+                id: currentRoom.member_count + 1,
+                player: {
+                    id: currentUser.telegram_id || currentUser.id,
+                    telegram_id: currentUser.telegram_id || currentUser.id,
+                    first_name: currentUser.first_name,
+                    last_name: currentUser.last_name,
+                    username: currentUser.username,
+                    rating: 1500
+                },
+                is_leader: false,
+                joined_at: new Date().toISOString()
+            };
+            
+            currentRoom.members.push(newMember);
+            currentRoom.member_count += 1;
+            
+            // ОБНОВЛЯЕМ СИНХРОНИЗАЦИЮ
+            try {
+                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
+                const roomIndex = syncRooms.findIndex(room => room.id === currentRoom.id);
+                
+                if (roomIndex !== -1) {
+                    syncRooms[roomIndex] = currentRoom;
+                    localStorage.setItem('badminton_sync_rooms', JSON.stringify(syncRooms));
+                    console.log('✅ КОМНАТА ОБНОВЛЕНА В СИНХРОНИЗАЦИИ');
+                }
+            } catch (error) {
+                console.error('❌ Ошибка обновления синхронизации:', error);
+            }
+            
+            // Сохраняем обновленную комнату локально
+            saveRoomToLocalStorage(currentRoom);
+            
+            console.log('✅ ПРИСОЕДИНИЛИСЬ К КОМНАТЕ:', currentRoom);
+            showMessage('✅ Вы успешно присоединились к комнате!', 'success');
+            
+            // Обновляем отображение комнаты
+            showRoomDetails(currentRoom.id);
         }
 
         async function handleLeaveRoom() {
             console.log('🚪 ВЫХОД ИЗ КОМНАТЫ:', currentRoom?.id);
-            
+
             if (!currentUser) {
                 showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
                 return;
@@ -1973,46 +2040,54 @@
             const confirmed = confirm('Вы уверены что хотите покинуть комнату?');
             if (!confirmed) return;
             
+            // Удаляем игрока из комнаты локально
+            const userTelegramId = currentUser.telegram_id || currentUser.id;
+            currentRoom.members = currentRoom.members.filter(member => 
+                member.player.telegram_id !== userTelegramId
+            );
+            currentRoom.member_count = currentRoom.members.length;
+            
+            // ОБНОВЛЯЕМ СИНХРОНИЗАЦИЮ
             try {
-                // ВЫХОДИМ ИЗ КОМНАТЫ ЧЕРЕЗ API
-                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/leave`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        telegram_id: currentUser.telegram_id || currentUser.id
-                    })
-                });
+                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
+                const roomIndex = syncRooms.findIndex(room => room.id === currentRoom.id);
                 
-                console.log('📡 Leave Response status:', response.status);
-                
-                if (response.ok) {
-                    const leaveData = await response.json();
-                    console.log('✅ ПОКИНУЛИ КОМНАТУ:', leaveData);
-                    
-                    // Проверяем была ли комната расформирована
-                    if (leaveData.room_disbanded) {
-                        showMessage('⚠️ Комната расформирована создателем', 'warning');
+                if (roomIndex !== -1) {
+                    if (currentRoom.member_count === 0) {
+                        // Удаляем комнату из синхронизации
+                        syncRooms.splice(roomIndex, 1);
+                        console.log('✅ КОМНАТА УДАЛЕНА ИЗ СИНХРОНИЗАЦИИ');
                     } else {
-                        showMessage('✅ Вы покинули комнату', 'success');
+                        // Обновляем комнату в синхронизации
+                        syncRooms[roomIndex] = currentRoom;
+                        console.log('✅ КОМНАТА ОБНОВЛЕНА В СИНХРОНИЗАЦИИ');
                     }
-                    
-                    // Возвращаемся в главное меню
-                    currentRoom = null;
-                    stopRoomUpdates();
-                    showMainMenu();
-                    
-                } else {
-                    const errorData = await response.json();
-                    console.log('❌ ОШИБКА ВЫХОДА:', errorData);
-                    showMessage(`❌ ${errorData.error || 'Ошибка выхода из комнаты'}`, 'error');
+                    localStorage.setItem('badminton_sync_rooms', JSON.stringify(syncRooms));
                 }
-                
             } catch (error) {
-                console.error('❌ ОШИБКА ВЫХОДА ИЗ КОМНАТЫ:', error);
-                showMessage('❌ Ошибка соединения с сервером', 'error');
+                console.error('❌ Ошибка обновления синхронизации:', error);
             }
+            
+            // Если комната пустая, удаляем её
+            if (currentRoom.member_count === 0) {
+                // Удаляем комнату из localStorage
+                const existingRooms = getLocalRooms();
+                const updatedRooms = existingRooms.filter(r => r.id !== currentRoom.id);
+                localStorage.setItem('badminton_local_rooms', JSON.stringify(updatedRooms));
+                
+                console.log('✅ КОМНАТА РАСФОРМИРОВАНА');
+                showMessage('⚠️ Комната расформирована', 'warning');
+            } else {
+                // Сохраняем обновленную комнату
+                saveRoomToLocalStorage(currentRoom);
+                console.log('✅ ПОКИНУЛИ КОМНАТУ');
+                showMessage('✅ Вы покинули комнату', 'success');
+            }
+            
+            // Возвращаемся в главное меню
+            currentRoom = null;
+            stopRoomUpdates();
+            showMainMenu();
         }
 
         async function handleFinishGame() {
@@ -2026,46 +2101,129 @@
 
             console.log('🎮 ЗАВЕРШЕНИЕ ИГРЫ:', { score1, score2 });
 
-            try {
-                // Используем выбранные команды
-                const scoreData = {
+            // Glicko-2 система рейтинга
+            const ratingChanges = calculateGlicko2Rating(selectedTeams, score1, score2);
+            
+            // Обновляем рейтинги игроков
+            Object.values(ratingChanges).forEach(change => {
+                const member = currentRoom.members.find(m => m.player.telegram_id == change.player_id);
+                if (member) {
+                    member.player.rating = change.new_rating;
+                    member.player.rd = change.new_rd || 350;
+                }
+            });
+            
+            // Сохраняем игру в турнир если он активен
+            const tournamentId = localStorage.getItem('current_tournament_id');
+            if (tournamentId) {
+                const gameData = {
+                    room_id: currentRoom.id,
                     team1: selectedTeams.team1,
                     team2: selectedTeams.team2,
                     score1: score1,
-                    score2: score2
+                    score2: score2,
+                    rating_changes: ratingChanges,
+                    timestamp: new Date().toISOString()
                 };
-
-                console.log('📊 ДАННЫЕ СЧЕТА:', scoreData);
-
-                // Отправляем данные на API
-                const response = await fetch(`${API_BASE_URL}/rooms/${currentRoom.id}/finish-game`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(scoreData)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ ИГРА ЗАВЕРШЕНА:', result);
-                    
-                    // Обновляем данные комнаты
-                    currentRoom = result.room;
-                    
-                    // Показываем результаты с рейтингом
-                    showGameResults(result.rating_changes, score1, score2);
-                    
-                } else {
-                    const errorData = await response.json();
-                    console.log('❌ ОШИБКА ЗАВЕРШЕНИЯ ИГРЫ:', errorData);
-                    showMessage(`❌ ${errorData.error || 'Ошибка завершения игры'}`, 'error');
-                }
-
-            } catch (error) {
-                console.error('❌ ОШИБКА ЗАВЕРШЕНИЯ ИГРЫ:', error);
-                showMessage('❌ Ошибка завершения игры', 'error');
+                
+                const tournamentGames = JSON.parse(localStorage.getItem(`tournament_${tournamentId}_games`) || '[]');
+                tournamentGames.push(gameData);
+                localStorage.setItem(`tournament_${tournamentId}_games`, JSON.stringify(tournamentGames));
+                
+                console.log('💾 Игра сохранена в турнир:', tournamentId);
             }
+            
+            // Сохраняем обновленную комнату
+            saveRoomToLocalStorage(currentRoom);
+            
+            console.log('✅ ИГРА ЗАВЕРШЕНА:', ratingChanges);
+            
+            // Показываем результаты с рейтингом
+            showGameResults(ratingChanges, score1, score2);
+        }
+        
+        function calculateGlicko2Rating(teams, score1, score2) {
+            const ratingChanges = {};
+            
+            // Определяем победителей
+            const team1Won = score1 > score2;
+            const team2Won = score2 > score1;
+            const isDraw = score1 === score2;
+            
+            // Вычисляем средний рейтинг команд
+            const team1Rating = teams.team1.reduce((sum, playerId) => {
+                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
+                return sum + (member?.player.rating || 1500);
+            }, 0) / teams.team1.length;
+            
+            const team2Rating = teams.team2.reduce((sum, playerId) => {
+                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
+                return sum + (member?.player.rating || 1500);
+            }, 0) / teams.team2.length;
+            
+            // Обновляем рейтинги для команды 1
+            teams.team1.forEach(playerId => {
+                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
+                if (member) {
+                    const oldRating = member.player.rating || 1500;
+                    const oldRd = member.player.rd || 350;
+                    
+                    // Glicko-2 расчет
+                    const g = 1 / Math.sqrt(1 + 3 * (oldRd ** 2) / (Math.PI ** 2));
+                    const e = 1 / (1 + Math.exp(-g * (oldRating - team2Rating) / 400));
+                    
+                    const v = 1 / (g ** 2 * e * (1 - e));
+                    const delta = v * g * ((team1Won ? 1 : team2Won ? 0 : 0.5) - e);
+                    
+                    const newRating = oldRating + (oldRd ** 2 + v) * g * ((team1Won ? 1 : team2Won ? 0 : 0.5) - e);
+                    const newRd = Math.sqrt(1 / (1 / (oldRd ** 2) + 1 / v));
+                    
+                    const ratingChange = newRating - oldRating;
+                    
+                    ratingChanges[playerId] = {
+                        player_id: playerId,
+                        old_rating: oldRating,
+                        new_rating: newRating,
+                        rating_change: ratingChange,
+                        new_rd: newRd,
+                        team: 'team1',
+                        won: team1Won
+                    };
+                }
+            });
+            
+            // Обновляем рейтинги для команды 2
+            teams.team2.forEach(playerId => {
+                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
+                if (member) {
+                    const oldRating = member.player.rating || 1500;
+                    const oldRd = member.player.rd || 350;
+                    
+                    // Glicko-2 расчет
+                    const g = 1 / Math.sqrt(1 + 3 * (oldRd ** 2) / (Math.PI ** 2));
+                    const e = 1 / (1 + Math.exp(-g * (oldRating - team1Rating) / 400));
+                    
+                    const v = 1 / (g ** 2 * e * (1 - e));
+                    const delta = v * g * ((team2Won ? 1 : team1Won ? 0 : 0.5) - e);
+                    
+                    const newRating = oldRating + (oldRd ** 2 + v) * g * ((team2Won ? 1 : team1Won ? 0 : 0.5) - e);
+                    const newRd = Math.sqrt(1 / (1 / (oldRd ** 2) + 1 / v));
+                    
+                    const ratingChange = newRating - oldRating;
+                    
+                    ratingChanges[playerId] = {
+                        player_id: playerId,
+                        old_rating: oldRating,
+                        new_rating: newRating,
+                        rating_change: ratingChange,
+                        new_rd: newRd,
+                        team: 'team2',
+                        won: team2Won
+                    };
+                }
+            });
+            
+            return ratingChanges;
         }
 
         function showGameResults(ratingChanges, score1, score2) {
