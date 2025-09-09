@@ -1527,6 +1527,12 @@
             console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ');
             const roomsList = document.getElementById('rooms-list');
             
+            // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА localStorage ПРИ КАЖДОЙ ЗАГРУЗКЕ
+            console.log('🧹 ПРИНУДИТЕЛЬНАЯ ОЧИСТКА localStorage');
+            localStorage.removeItem('badminton_sync_rooms');
+            localStorage.removeItem('badminton_static_rooms');
+            localStorage.removeItem('badminton_local_rooms');
+            
             try {
                 // Загружаем комнаты с сервера
                 console.log('🌐 Загружаем комнаты с сервера:', API_BASE_URL);
@@ -1538,31 +1544,23 @@
                     serverRooms = await response.json();
                     console.log('✅ КОМНАТЫ С СЕРВЕРА:', serverRooms);
                     
-                    // Если сервер пустой, очищаем localStorage (команда /clear_rooms)
-                    if (serverRooms.length === 0) {
-                        console.log('🧹 Сервер пустой - очищаем localStorage');
-                        localStorage.removeItem('badminton_sync_rooms');
-                        localStorage.removeItem('badminton_static_rooms');
-                        localStorage.removeItem('badminton_local_rooms');
-                    }
+                    // Сервер уже очищен принудительно выше
                 }
                 
-                // Если сервер пустой, не добавляем комнаты из localStorage
+                // Показываем комнаты с сервера + из localStorage (для синхронизации)
                 let allRooms = [...serverRooms];
                 
-                // Добавляем комнаты из localStorage только если сервер НЕ пустой
-                if (serverRooms.length > 0) {
-                    const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                    console.log('✅ СИНХРОНИЗИРОВАННЫЕ КОМНАТЫ:', syncRooms);
-                    
-                    syncRooms.forEach(syncRoom => {
-                        if (!allRooms.find(room => room.id === syncRoom.id)) {
-                            allRooms.push(syncRoom);
-                        }
-                    });
-                } else {
-                    console.log('🧹 Сервер пустой - игнорируем localStorage');
-                }
+                // Добавляем комнаты из localStorage для синхронизации между пользователями
+                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
+                console.log('✅ СИНХРОНИЗИРОВАННЫЕ КОМНАТЫ:', syncRooms);
+                
+                syncRooms.forEach(syncRoom => {
+                    if (!allRooms.find(room => room.id === syncRoom.id)) {
+                        allRooms.push(syncRoom);
+                    }
+                });
+                
+                console.log('✅ ПОКАЗЫВАЕМ КОМНАТЫ С СЕРВЕРА + LOCALSTORAGE:', allRooms.length);
                 
                 console.log('✅ ВСЕГО КОМНАТ:', allRooms.length);
                 
