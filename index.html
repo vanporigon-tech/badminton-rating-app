@@ -599,7 +599,33 @@
         // Версия 9.8 - ИНТЕРФЕЙС ВВОДА РЕЗУЛЬТАТОВ С ИМЕНАМИ ИГРОКОВ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const API_BASE_URL = 'https://vanporigon-tech.github.io/badminton-rating-app';
+        let API_BASE_URL = localStorage.getItem('API_BASE_URL') || 'https://badminton-api-vercel.onrender.com';
+
+        async function apiGet(path) {
+            const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'omit' });
+            if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
+            return res.json();
+        }
+
+        async function apiPost(path, body) {
+            const res = await fetch(`${API_BASE_URL}${path}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body || {})
+            });
+            if (!res.ok) throw new Error(`POST ${path} -> ${res.status}`);
+            return res.json();
+        }
+
+        function configureApiBaseUrl() {
+            const current = localStorage.getItem('API_BASE_URL') || API_BASE_URL;
+            const value = prompt('Укажите адрес backend API (например, https://your-api.example.com)', current);
+            if (value) {
+                localStorage.setItem('API_BASE_URL', value);
+                API_BASE_URL = value;
+                showMessage(`✅ API_BASE_URL установлен: ${value}`, 'success');
+            }
+        }
         
         // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
         console.log('🌐 Текущий хост:', window.location.hostname);
@@ -833,6 +859,22 @@
                     
                     // Сохраняем в localStorage
                     localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+
+                    // Регистрируем/обновляем пользователя в backend
+                    try {
+                        await fetch((localStorage.getItem('API_BASE_URL') || 'https://badminton-api-vercel.onrender.com') + '/players/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                telegram_id: telegramUser.id,
+                                first_name: currentUser.first_name,
+                                last_name: currentUser.last_name,
+                                username: currentUser.username
+                            })
+                        });
+                    } catch (e) {
+                        console.warn('Не удалось зарегистрировать пользователя в API:', e);
+                    }
                     updateUserDisplay();
                     return;
                 }
@@ -1191,7 +1233,7 @@
             // Show the requested section
             document.getElementById(sectionId).classList.remove('hidden');
         }
-
+        
         function showMainMenu() {
             if (currentRoom) {
                 const confirmed = confirm('Вы уверены что хотите выйти из этой комнаты?');
@@ -1215,46 +1257,43 @@
                 }
             }
         }
-        
         // Функции для работы с турнирами
-        function startTournament() {
-            const tournamentId = Date.now();
-            const tournamentInfo = {
-                id: tournamentId,
-                status: 'active',
-                start_time: new Date().toISOString(),
-                games: []
-            };
-            
-            localStorage.setItem('current_tournament_id', tournamentId);
-            localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
-            localStorage.setItem(`tournament_${tournamentId}_games`, JSON.stringify([]));
-            
-            showMessage(`🏆 Турнир #${tournamentId} начат! Все игры будут записываться.`, 'success');
-            console.log('🏆 Турнир начат:', tournamentInfo);
+        async function startTournament() {
+            try {
+                const resp = await apiPost('/tournaments/start', { name: '' });
+                const tournamentId = resp.id;
+                const tournamentInfo = {
+                    id: tournamentId,
+                    status: 'active',
+                    start_time: new Date().toISOString(),
+                    games: []
+                };
+                localStorage.setItem('current_tournament_id', tournamentId);
+                localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
+                showMessage(`🏆 Турнир #${tournamentId} начат!`, 'success');
+                console.log('🏆 Турнир начат:', tournamentInfo);
+            } catch (e) {
+                console.error('❌ Ошибка старта турнира:', e);
+                showMessage('❌ Ошибка старта турнира', 'error');
+            }
         }
         
-        function endTournament() {
+        async function endTournament() {
             const tournamentId = localStorage.getItem('current_tournament_id');
             if (!tournamentId) {
                 showMessage('❌ Нет активного турнира', 'error');
                 return;
             }
-            
-            const tournamentInfo = JSON.parse(localStorage.getItem(`tournament_${tournamentId}`) || '{}');
-            tournamentInfo.status = 'finished';
-            tournamentInfo.end_time = new Date().toISOString();
-            
-            localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
-            localStorage.removeItem('current_tournament_id');
-            
-            const games = JSON.parse(localStorage.getItem(`tournament_${tournamentId}_games`) || '[]');
-            
-            showMessage(`🏆 Турнир #${tournamentId} завершен! Игр сыграно: ${games.length}`, 'success');
-            console.log('🏆 Турнир завершен:', tournamentInfo, 'Игр:', games.length);
-            
-            // Показываем статистику турнира
-            showTournamentStats(tournamentId, games);
+            try {
+                const resp = await apiPost(`/tournaments/${tournamentId}/end`, {});
+                localStorage.removeItem('current_tournament_id');
+                const sheetUrl = resp.sheet_url;
+                showMessage(`🏁 Турнир #${tournamentId} завершен${sheetUrl ? ' — таблица создана' : ''}!`, 'success');
+                if (sheetUrl) console.log('📊 Tournament sheet:', sheetUrl);
+            } catch (e) {
+                console.error('❌ Ошибка завершения турнира:', e);
+                showMessage('❌ Ошибка завершения турнира', 'error');
+            }
         }
         
         function showTournamentStats(tournamentId, games) {
@@ -1455,38 +1494,17 @@
             console.log('🔍 ЗАГРУЖАЕМ СПИСОК КОМНАТ');
             const roomsList = document.getElementById('rooms-list');
             
-            // ПРИНУДИТЕЛЬНАЯ ОЧИСТКА localStorage ПРИ КАЖДОЙ ЗАГРУЗКЕ
-            console.log('🧹 ПРИНУДИТЕЛЬНАЯ ОЧИСТКА localStorage');
-            localStorage.removeItem('badminton_sync_rooms');
-            localStorage.removeItem('badminton_static_rooms');
-            localStorage.removeItem('badminton_local_rooms');
+            // Очистку localStorage не делаем принудительно — используем серверные данные
             
             try {
-                // Загружаем комнаты с сервера
-                console.log('🌐 Загружаем комнаты с сервера:', API_BASE_URL);
-                
-                const response = await fetch(`${API_BASE_URL}/api/rooms.json`);
-                let serverRooms = [];
-                
-                if (response.ok) {
-                    serverRooms = await response.json();
-                    console.log('✅ КОМНАТЫ С СЕРВЕРА:', serverRooms);
-                    
-                    // Сервер уже очищен принудительно выше
-                }
+                // Загружаем комнаты с backend
+                console.log('🌐 Загружаем комнаты с backend:', API_BASE_URL);
+                let serverRooms = await apiGet('/rooms/');
                 
                 // Показываем комнаты с сервера + из localStorage (для синхронизации)
                 let allRooms = [...serverRooms];
                 
-                // Добавляем комнаты из localStorage для синхронизации между пользователями
-                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                console.log('✅ СИНХРОНИЗИРОВАННЫЕ КОМНАТЫ:', syncRooms);
-                
-                syncRooms.forEach(syncRoom => {
-                    if (!allRooms.find(room => room.id === syncRoom.id)) {
-                        allRooms.push(syncRoom);
-                    }
-                });
+                // Синхронизацию LocalStorage отключаем — используем реальный сервер
                 
                 console.log('✅ ПОКАЗЫВАЕМ КОМНАТЫ С СЕРВЕРА + LOCALSTORAGE:', allRooms.length);
                 
@@ -1526,55 +1544,28 @@
             const roomName = getDisplayName(currentUser);
             console.log('📝 СОЗДАЕМ КОМНАТУ:', roomName);
             
-            // Создаем комнату с уникальным ID
-            const newRoom = {
-                id: Date.now(),
-                name: roomName,
-                creator_id: currentUser.telegram_id || currentUser.id,
-                creator_full_name: roomName,
-                max_players: 4,
-                member_count: 1,
-                is_active: true,
-                created_at: new Date().toISOString(),
-                members: [{
-                    id: 1,
-                    player: {
-                        id: currentUser.telegram_id || currentUser.id,
-                        telegram_id: currentUser.telegram_id || currentUser.id,
-                        first_name: currentUser.first_name,
-                        last_name: currentUser.last_name,
-                        username: currentUser.username,
-                        rating: 1500
-                    },
-                    is_leader: true,
-                    joined_at: new Date().toISOString()
-                }]
-            };
-            
-            // СОХРАНЯЕМ КОМНАТУ В LOCALSTORAGE ДЛЯ СИНХРОНИЗАЦИИ
             try {
-                // Получаем существующие синхронизированные комнаты
-                const existingRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                
-                // Добавляем новую комнату
-                existingRooms.push(newRoom);
-                
-                // Сохраняем обновленный список
-                localStorage.setItem('badminton_sync_rooms', JSON.stringify(existingRooms));
-                
-                console.log('✅ КОМНАТА ДОБАВЛЕНА В СИНХРОНИЗАЦИЮ:', newRoom);
-                
-            } catch (error) {
-                console.error('❌ Ошибка синхронизации:', error);
-            }
-            
-            // СОХРАНЯЕМ В LOCALSTORAGE
-            saveRoomToLocalStorage(newRoom);
+                // Создаём пользователя на сервере (идемпотентно)
+                await apiPost('/players/', {
+                    telegram_id: currentUser.telegram_id || currentUser.id,
+                    first_name: currentUser.first_name,
+                    last_name: currentUser.last_name,
+                    username: currentUser.username
+                });
 
-            currentRoom = newRoom;
-            console.log('✅ КОМНАТА СОЗДАНА:', currentRoom);
-            showMessage(`✅ Комната "${roomName}" создана!`, 'success');
-            showRoomDetails(newRoom.id);
+                const created = await apiPost('/rooms/', {
+                    name: roomName,
+                    creator_telegram_id: currentUser.telegram_id || currentUser.id,
+                    max_players: 4
+                });
+
+                currentRoom = created;
+                showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+                showRoomDetails(created.id);
+            } catch (e) {
+                console.error('❌ Ошибка создания комнаты:', e);
+                showMessage('❌ Ошибка создания комнаты', 'error');
+            }
         }
 
         async function showRoomDetails(roomId) {
@@ -1585,12 +1576,17 @@
                 return;
             }
             
-            // Ищем комнату в локальных данных
-            const localRoom = getLocalRoomById(roomId);
-            const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
-            const staticRoom = staticRooms.find(room => room.id === roomId);
-            
-            const room = localRoom || staticRoom;
+            // Загружаем комнату с backend
+            let room = null;
+            try {
+                room = await apiGet(`/rooms/${roomId}`);
+            } catch (e) {
+                console.warn('⚠️ Не удалось загрузить комнату с сервера, используем локальные данные', e);
+                const localRoom = getLocalRoomById(roomId);
+                const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
+                const staticRoom = staticRooms.find(room => room.id === roomId);
+                room = localRoom || staticRoom;
+            }
             
             if (!room) {
                 console.log('❌ Комната не найдена');
@@ -1907,40 +1903,20 @@
                 return;
             }
             
-            // Добавляем игрока в комнату локально
-            const newMember = {
-                id: currentRoom.member_count + 1,
-                player: {
-                    id: currentUser.telegram_id || currentUser.id,
+            try {
+                await apiPost('/players/', {
                     telegram_id: currentUser.telegram_id || currentUser.id,
                     first_name: currentUser.first_name,
                     last_name: currentUser.last_name,
-                    username: currentUser.username,
-                    rating: 1500
-                },
-                is_leader: false,
-                joined_at: new Date().toISOString()
-            };
-            
-            currentRoom.members.push(newMember);
-            currentRoom.member_count += 1;
-            
-            // ОБНОВЛЯЕМ СИНХРОНИЗАЦИЮ
-            try {
-                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                const roomIndex = syncRooms.findIndex(room => room.id === currentRoom.id);
-                
-                if (roomIndex !== -1) {
-                    syncRooms[roomIndex] = currentRoom;
-                    localStorage.setItem('badminton_sync_rooms', JSON.stringify(syncRooms));
-                    console.log('✅ КОМНАТА ОБНОВЛЕНА В СИНХРОНИЗАЦИИ');
-                }
-            } catch (error) {
-                console.error('❌ Ошибка обновления синхронизации:', error);
+                    username: currentUser.username
+                });
+                const updated = await apiPost(`/rooms/${currentRoom.id}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`);
+                currentRoom = updated;
+            } catch (e) {
+                console.error('❌ Ошибка присоединения к комнате:', e);
+                showMessage('❌ Ошибка присоединения', 'error');
+                return;
             }
-            
-            // Сохраняем обновленную комнату локально
-            saveRoomToLocalStorage(currentRoom);
             
             console.log('✅ ПРИСОЕДИНИЛИСЬ К КОМНАТЕ:', currentRoom);
             showMessage('✅ Вы успешно присоединились к комнате!', 'success');
@@ -1966,48 +1942,13 @@
             const confirmed = confirm('Вы уверены что хотите покинуть комнату?');
             if (!confirmed) return;
             
-            // Удаляем игрока из комнаты локально
-            const userTelegramId = currentUser.telegram_id || currentUser.id;
-            currentRoom.members = currentRoom.members.filter(member => 
-                member.player.telegram_id !== userTelegramId
-            );
-            currentRoom.member_count = currentRoom.members.length;
-            
-            // ОБНОВЛЯЕМ СИНХРОНИЗАЦИЮ
             try {
-                const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                const roomIndex = syncRooms.findIndex(room => room.id === currentRoom.id);
-                
-                if (roomIndex !== -1) {
-                    if (currentRoom.member_count === 0) {
-                        // Удаляем комнату из синхронизации
-                        syncRooms.splice(roomIndex, 1);
-                        console.log('✅ КОМНАТА УДАЛЕНА ИЗ СИНХРОНИЗАЦИИ');
-                    } else {
-                        // Обновляем комнату в синхронизации
-                        syncRooms[roomIndex] = currentRoom;
-                        console.log('✅ КОМНАТА ОБНОВЛЕНА В СИНХРОНИЗАЦИИ');
-                    }
-                    localStorage.setItem('badminton_sync_rooms', JSON.stringify(syncRooms));
-                }
-            } catch (error) {
-                console.error('❌ Ошибка обновления синхронизации:', error);
-            }
-            
-            // Если комната пустая, удаляем её
-            if (currentRoom.member_count === 0) {
-                // Удаляем комнату из localStorage
-                const existingRooms = getLocalRooms();
-                const updatedRooms = existingRooms.filter(r => r.id !== currentRoom.id);
-                localStorage.setItem('badminton_local_rooms', JSON.stringify(updatedRooms));
-                
-                console.log('✅ КОМНАТА РАСФОРМИРОВАНА');
-                showMessage('⚠️ Комната расформирована', 'warning');
-            } else {
-                // Сохраняем обновленную комнату
-                saveRoomToLocalStorage(currentRoom);
-                console.log('✅ ПОКИНУЛИ КОМНАТУ');
+                const updated = await apiPost(`/rooms/${currentRoom.id}/leave?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`);
+                currentRoom = updated;
                 showMessage('✅ Вы покинули комнату', 'success');
+            } catch (e) {
+                console.error('❌ Ошибка выхода из комнаты:', e);
+                showMessage('❌ Ошибка выхода', 'error');
             }
             
             // Возвращаемся в главное меню
@@ -2027,17 +1968,24 @@
 
             console.log('🎮 ЗАВЕРШЕНИЕ ИГРЫ:', { score1, score2 });
 
-            // Glicko-2 система рейтинга
-            const ratingChanges = calculateGlicko2Rating(selectedTeams, score1, score2);
-            
-            // Обновляем рейтинги игроков
-            Object.values(ratingChanges).forEach(change => {
-                const member = currentRoom.members.find(m => m.player.telegram_id == change.player_id);
-                if (member) {
-                    member.player.rating = change.new_rating;
-                    member.player.rd = change.new_rd || 350;
-                }
-            });
+            // Отправляем игру на backend и получаем изменения рейтинга
+            let ratingChanges = {};
+            try {
+                const payload = {
+                    team1_telegram_ids: selectedTeams.team1,
+                    team2_telegram_ids: selectedTeams.team2,
+                    score1: score1,
+                    score2: score2,
+                    room_id: currentRoom.id,
+                    tournament_id: localStorage.getItem('current_tournament_id') ? parseInt(localStorage.getItem('current_tournament_id')) : null
+                };
+                const res = await apiPost('/games', payload);
+                ratingChanges = res.rating_changes || {};
+            } catch (e) {
+                console.error('❌ Ошибка отправки игры на сервер:', e);
+                showMessage('❌ Ошибка отправки игры на сервер', 'error');
+                return;
+            }
             
             // Сохраняем игру в турнир если он активен
             const tournamentId = localStorage.getItem('current_tournament_id');
@@ -2068,89 +2016,7 @@
             showGameResults(ratingChanges, score1, score2);
         }
         
-        function calculateGlicko2Rating(teams, score1, score2) {
-            const ratingChanges = {};
-            
-            // Определяем победителей
-            const team1Won = score1 > score2;
-            const team2Won = score2 > score1;
-            const isDraw = score1 === score2;
-            
-            // Вычисляем средний рейтинг команд
-            const team1Rating = teams.team1.reduce((sum, playerId) => {
-                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
-                return sum + (member?.player.rating || 1500);
-            }, 0) / teams.team1.length;
-            
-            const team2Rating = teams.team2.reduce((sum, playerId) => {
-                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
-                return sum + (member?.player.rating || 1500);
-            }, 0) / teams.team2.length;
-            
-            // Обновляем рейтинги для команды 1
-            teams.team1.forEach(playerId => {
-                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
-                if (member) {
-                    const oldRating = member.player.rating || 1500;
-                    const oldRd = member.player.rd || 350;
-                    
-                    // Glicko-2 расчет
-                    const g = 1 / Math.sqrt(1 + 3 * (oldRd ** 2) / (Math.PI ** 2));
-                    const e = 1 / (1 + Math.exp(-g * (oldRating - team2Rating) / 400));
-                    
-                    const v = 1 / (g ** 2 * e * (1 - e));
-                    const delta = v * g * ((team1Won ? 1 : team2Won ? 0 : 0.5) - e);
-                    
-                    const newRating = oldRating + (oldRd ** 2 + v) * g * ((team1Won ? 1 : team2Won ? 0 : 0.5) - e);
-                    const newRd = Math.sqrt(1 / (1 / (oldRd ** 2) + 1 / v));
-                    
-                    const ratingChange = newRating - oldRating;
-                    
-                    ratingChanges[playerId] = {
-                        player_id: playerId,
-                        old_rating: oldRating,
-                        new_rating: newRating,
-                        rating_change: ratingChange,
-                        new_rd: newRd,
-                        team: 'team1',
-                        won: team1Won
-                    };
-                }
-            });
-            
-            // Обновляем рейтинги для команды 2
-            teams.team2.forEach(playerId => {
-                const member = currentRoom.members.find(m => m.player.telegram_id == playerId);
-                if (member) {
-                    const oldRating = member.player.rating || 1500;
-                    const oldRd = member.player.rd || 350;
-                    
-                    // Glicko-2 расчет
-                    const g = 1 / Math.sqrt(1 + 3 * (oldRd ** 2) / (Math.PI ** 2));
-                    const e = 1 / (1 + Math.exp(-g * (oldRating - team1Rating) / 400));
-                    
-                    const v = 1 / (g ** 2 * e * (1 - e));
-                    const delta = v * g * ((team2Won ? 1 : team1Won ? 0 : 0.5) - e);
-                    
-                    const newRating = oldRating + (oldRd ** 2 + v) * g * ((team2Won ? 1 : team1Won ? 0 : 0.5) - e);
-                    const newRd = Math.sqrt(1 / (1 / (oldRd ** 2) + 1 / v));
-                    
-                    const ratingChange = newRating - oldRating;
-                    
-                    ratingChanges[playerId] = {
-                        player_id: playerId,
-                        old_rating: oldRating,
-                        new_rating: newRating,
-                        rating_change: ratingChange,
-                        new_rd: newRd,
-                        team: 'team2',
-                        won: team2Won
-                    };
-                }
-            });
-            
-            return ratingChanges;
-        }
+        // Расчет рейтинга теперь производит сервер — эта функция больше не используется
 
         function showGameResults(ratingChanges, score1, score2) {
             console.log('🏆 ПОКАЗЫВАЕМ РЕЗУЛЬТАТЫ ИГРЫ:', ratingChanges);
@@ -2171,9 +2037,9 @@
                 if (!player) return;
                 
                 const playerName = `${player.player.first_name} ${player.player.last_name}`.trim();
-                const teamName = change.team === 1 ? 'Команда 1' : 'Команда 2';
+                const teamName = change.team === 1 || change.team === 'team1' ? 'Команда 1' : 'Команда 2';
                 const isWinner = change.won;
-                const ratingChange = change.rating_change;
+                const ratingChange = Math.round(change.rating_change);
                 
                 const ratingItem = document.createElement('div');
                 ratingItem.className = `rating-item ${isWinner ? 'winner' : 'loser'}`;
@@ -2190,7 +2056,7 @@
                         <div class="rating-change-value ${changeClass}">
                             ${changeSymbol}${ratingChange}
                         </div>
-                        <div class="old-rating">${change.old_rating} → ${change.new_rating}</div>
+                        <div class="old-rating">${Math.round(change.old_rating)} → ${Math.round(change.new_rating)}</div>
                     </div>
                 `;
                 
@@ -2198,198 +2064,22 @@
             });
         }
 
-        // ФУНКЦИЯ НАЧАЛА ИГРЫ
-        function handleStartGame() {
-            console.log('🎮 НАЧАЛО ИГРЫ');
-            
-            if (!currentRoom || !currentRoom.members) {
-                showMessage('❌ Ошибка: данные комнаты недоступны', 'error');
-                return;
+        // Плавающая кнопка настроек API
+        (function addSettingsButton(){
+            try {
+                const btn = document.createElement('button');
+                btn.textContent = '⚙️ API';
+                btn.style.position = 'fixed';
+                btn.style.bottom = '12px';
+                btn.style.right = '12px';
+                btn.style.zIndex = '9999';
+                btn.className = 'btn btn-secondary';
+                btn.onclick = configureApiBaseUrl;
+                document.body.appendChild(btn);
+            } catch (e) {
+                console.warn('Не удалось добавить кнопку настроек API', e);
             }
-            
-            const playerCount = currentRoom.members.length;
-            
-            if (playerCount < 2) {
-                showMessage('❌ Недостаточно игроков (Нужно 2 или 4)', 'error');
-                return;
-            }
-            
-            if (playerCount === 3) {
-                showMessage('❌ Недостаточно игроков (Нужно 2 или 4)', 'error');
-                return;
-            }
-            
-            if (playerCount > 4) {
-                showMessage('❌ Слишком много игроков (Максимум 4)', 'error');
-                return;
-            }
-            
-            // Настраиваем интерфейс ввода результата в зависимости от количества игроков
-            if (playerCount === 2) {
-                // 1v1 - показываем имена игроков
-                const player1 = currentRoom.members[0];
-                const player2 = currentRoom.members[1];
-                
-                document.getElementById('team1-name').textContent = getDisplayName(player1.player);
-                document.getElementById('team2-name').textContent = getDisplayName(player2.player);
-            } else if (playerCount === 4) {
-                // 2v2 - показываем команды (пока простая логика)
-                const team1 = [currentRoom.members[0], currentRoom.members[1]];
-                const team2 = [currentRoom.members[2], currentRoom.members[3]];
-                
-                document.getElementById('team1-name').textContent = 
-                    `${getDisplayName(team1[0].player)} + ${getDisplayName(team1[1].player)}`;
-                document.getElementById('team2-name').textContent = 
-                    `${getDisplayName(team2[0].player)} + ${getDisplayName(team2[1].player)}`;
-            }
-            
-            // Сбрасываем счет
-            document.getElementById('score1-input').value = '0';
-            document.getElementById('score2-input').value = '0';
-            
-            showSection('game-result');
-            console.log('✅ Игра началась');
-        }
-        
-        // ФУНКЦИЯ ЗАВЕРШЕНИЯ ИГРЫ С РАСЧЕТОМ GLICKO-2 РЕЙТИНГА
-        async function handleFinishGame() {
-            console.log('🏁 ЗАВЕРШЕНИЕ ИГРЫ');
-            
-            if (!currentRoom || !currentRoom.members) {
-                showMessage('❌ Ошибка: данные комнаты недоступны', 'error');
-                return;
-            }
-            
-            const playerCount = currentRoom.members.length;
-            
-            if (playerCount !== 2 && playerCount !== 4) {
-                showMessage('❌ Игра возможна только для 2 или 4 игроков', 'error');
-                return;
-            }
-            
-            // Получаем счет
-            const score1 = parseInt(document.getElementById('score1-input').value) || 0;
-            const score2 = parseInt(document.getElementById('score2-input').value) || 0;
-            
-            if (score1 === 0 && score2 === 0) {
-                showMessage('❌ Введите счет игры', 'error');
-                return;
-            }
-            
-            // Определяем победителей
-            const team1Won = score1 > score2;
-            
-            // Логика для 1v1
-            if (playerCount === 2) {
-                const player1 = currentRoom.members[0];
-                const player2 = currentRoom.members[1];
-                
-                const results = calculateGlicko2Rating([player1.player], [player2.player], team1Won);
-                
-                // Сохраняем результаты для показа
-                const gameResults = [
-                    {
-                        name: getDisplayName(player1.player),
-                        old_rating: player1.player.rating,
-                        new_rating: results.team1[0].rating,
-                        change: results.team1[0].rating - player1.player.rating
-                    },
-                    {
-                        name: getDisplayName(player2.player),
-                        old_rating: player2.player.rating,
-                        new_rating: results.team2[0].rating,
-                        change: results.team2[0].rating - player2.player.rating
-                    }
-                ];
-                
-                showGameResults(gameResults, `${score1}:${score2}`);
-            }
-            
-            // Логика для 2v2
-            else if (playerCount === 4) {
-                // Пока сохраняем простую логику - первые 2 vs последние 2
-                const team1 = [currentRoom.members[0], currentRoom.members[1]];
-                const team2 = [currentRoom.members[2], currentRoom.members[3]];
-                
-                const results = calculateGlicko2Rating(
-                    team1.map(m => m.player),
-                    team2.map(m => m.player),
-                    team1Won
-                );
-                
-                // Сохраняем результаты для показа
-                const gameResults = [
-                    ...team1.map((member, i) => ({
-                        name: getDisplayName(member.player),
-                        old_rating: member.player.rating,
-                        new_rating: results.team1[i].rating,
-                        change: results.team1[i].rating - member.player.rating
-                    })),
-                    ...team2.map((member, i) => ({
-                        name: getDisplayName(member.player),
-                        old_rating: member.player.rating,
-                        new_rating: results.team2[i].rating,
-                        change: results.team2[i].rating - member.player.rating
-                    }))
-                ];
-                
-                showGameResults(gameResults, `${score1}:${score2}`);
-            }
-            
-            console.log('✅ Игра завершена, рейтинги обновлены');
-        }
-        
-        // ФУНКЦИЯ РАСЧЕТА РЕЙТИНГА GLICKO-2
-        function calculateGlicko2Rating(team1Players, team2Players, team1Won) {
-            const K = 32; // Коэффициент изменения рейтинга
-            
-            // Упрощенная реализация Glicko-2 для MVP
-            const avgRating1 = team1Players.reduce((sum, p) => sum + (p.rating || 1500), 0) / team1Players.length;
-            const avgRating2 = team2Players.reduce((sum, p) => sum + (p.rating || 1500), 0) / team2Players.length;
-            
-            const ratingDiff = avgRating1 - avgRating2;
-            const expectedScore1 = 1 / (1 + Math.pow(10, -ratingDiff / 400));
-            const actualScore1 = team1Won ? 1 : 0;
-            
-            const ratingChange = K * (actualScore1 - expectedScore1);
-            
-            // Применяем изменения к игрокам
-            const newTeam1 = team1Players.map(player => ({
-                ...player,
-                rating: Math.round((player.rating || 1500) + ratingChange)
-            }));
-            
-            const newTeam2 = team2Players.map(player => ({
-                ...player,
-                rating: Math.round((player.rating || 1500) - ratingChange)
-            }));
-            
-            return {
-                team1: newTeam1,
-                team2: newTeam2
-            };
-        }
-        
-        // ФУНКЦИЯ ПОКАЗА РЕЗУЛЬТАТОВ ИГРЫ
-        function showGameResults(results, score) {
-            console.log('🏆 Показываем результаты игры:', results);
-            
-            // Обновляем элементы результатов
-            document.getElementById('final-score-display').textContent = score;
-            
-            const resultsContainer = document.getElementById('rating-results-list');
-            resultsContainer.innerHTML = results.map(result => `
-                <div class="player-result">
-                    <div class="player-name">${result.name}</div>
-                    <div class="rating-change ${result.change >= 0 ? 'positive' : 'negative'}">
-                        ${result.change >= 0 ? '+' : ''}${result.change}
-                    </div>
-                    <div class="old-rating">${result.old_rating} → ${result.new_rating}</div>
-                </div>
-            `).join('');
-            
-            showSection('game-results');
-        }
+        })();
 
         function showMessage(text, type) {
             const messageDiv = document.createElement('div');
