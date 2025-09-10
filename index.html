@@ -477,11 +477,7 @@
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
             <button id="create-game-btn" class="btn btn-secondary">➕ Создать игру</button>
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-                <h4 style="text-align: center; margin-bottom: 15px; color: #ffd700;">🏆 Турниры</h4>
-                <button id="start-tournament-btn" class="btn btn-tournament" style="background: linear-gradient(45deg, #ffd700, #ffed4e); color: #333; margin: 5px;">🏆 Начать турнир</button>
-                <button id="end-tournament-btn" class="btn btn-tournament" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e); color: white; margin: 5px;">🏁 Завершить турнир</button>
-            </div>
+            
         </div>
 
 
@@ -617,15 +613,7 @@
             return res.json();
         }
 
-        function configureApiBaseUrl() {
-            const current = localStorage.getItem('API_BASE_URL') || API_BASE_URL;
-            const value = prompt('Укажите адрес backend API (например, https://your-api.example.com)', current);
-            if (value) {
-                localStorage.setItem('API_BASE_URL', value);
-                API_BASE_URL = value;
-                showMessage(`✅ API_BASE_URL установлен: ${value}`, 'success');
-            }
-        }
+        // Удалена пользовательская настройка API — используем публичный URL по умолчанию
         
         // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
         console.log('🌐 Текущий хост:', window.location.hostname);
@@ -1248,123 +1236,9 @@
             updateUserDisplay(); // Обновляем отображение пользователя
             showSection('main-menu');
             
-            // Проверяем активный турнир
-            const tournamentId = localStorage.getItem('current_tournament_id');
-            if (tournamentId) {
-                const tournamentInfo = JSON.parse(localStorage.getItem(`tournament_${tournamentId}`) || '{}');
-                if (tournamentInfo.status === 'active') {
-                    showMessage(`🏆 Турнир #${tournamentId} активен! Все игры записываются.`, 'success');
-                }
-            }
+            // Турнирная логика отключена для TTM
         }
-        // Функции для работы с турнирами
-        async function startTournament() {
-            try {
-                const resp = await apiPost('/tournaments/start', { name: '' });
-                const tournamentId = resp.id;
-                const tournamentInfo = {
-                    id: tournamentId,
-                    status: 'active',
-                    start_time: new Date().toISOString(),
-                    games: []
-                };
-                localStorage.setItem('current_tournament_id', tournamentId);
-                localStorage.setItem(`tournament_${tournamentId}`, JSON.stringify(tournamentInfo));
-                showMessage(`🏆 Турнир #${tournamentId} начат!`, 'success');
-                console.log('🏆 Турнир начат:', tournamentInfo);
-            } catch (e) {
-                console.error('❌ Ошибка старта турнира:', e);
-                showMessage('❌ Ошибка старта турнира', 'error');
-            }
-        }
-        
-        async function endTournament() {
-            const tournamentId = localStorage.getItem('current_tournament_id');
-            if (!tournamentId) {
-                showMessage('❌ Нет активного турнира', 'error');
-                return;
-            }
-            try {
-                const resp = await apiPost(`/tournaments/${tournamentId}/end`, {});
-                localStorage.removeItem('current_tournament_id');
-                const sheetUrl = resp.sheet_url;
-                showMessage(`🏁 Турнир #${tournamentId} завершен${sheetUrl ? ' — таблица создана' : ''}!`, 'success');
-                if (sheetUrl) console.log('📊 Tournament sheet:', sheetUrl);
-            } catch (e) {
-                console.error('❌ Ошибка завершения турнира:', e);
-                showMessage('❌ Ошибка завершения турнира', 'error');
-            }
-        }
-        
-        function showTournamentStats(tournamentId, games) {
-            const stats = calculateTournamentStats(games);
-            
-            let statsHtml = `
-                <h3>🏆 Статистика турнира #${tournamentId}</h3>
-                <p>Игр сыграно: ${games.length}</p>
-                <p>Участников: ${stats.players.size}</p>
-                <h4>Рейтинг игроков:</h4>
-                <ol>
-            `;
-            
-            // Сортируем игроков по рейтингу
-            const sortedPlayers = Array.from(stats.players.entries())
-                .sort((a, b) => b[1].rating - a[1].rating);
-            
-            sortedPlayers.forEach(([playerId, player], index) => {
-                const change = player.rating - 1500;
-                const changeText = change > 0 ? `+${change.toFixed(0)}` : change.toFixed(0);
-                statsHtml += `
-                    <li>
-                        ${index + 1}. ${player.name} - ${player.rating.toFixed(0)} 
-                        <span style="color: ${change > 0 ? 'green' : 'red'}">(${changeText})</span>
-                    </li>
-                `;
-            });
-            
-            statsHtml += '</ol>';
-            
-            // Показываем в модальном окне
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.8); display: flex; align-items: center;
-                justify-content: center; z-index: 1000;
-            `;
-            modal.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; max-height: 80vh; overflow-y: auto;">
-                    ${statsHtml}
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        Закрыть
-                    </button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        function calculateTournamentStats(games) {
-            const players = new Map();
-            
-            games.forEach(game => {
-                Object.values(game.rating_changes).forEach(change => {
-                    if (!players.has(change.player_id)) {
-                        players.set(change.player_id, {
-                            name: `Игрок ${change.player_id}`,
-                            rating: 1500,
-                            games: 0,
-                            wins: 0
-                        });
-                    }
-                    
-                    const player = players.get(change.player_id);
-                    player.rating = change.new_rating;
-                    player.games++;
-                    if (change.won) player.wins++;
-                });
-            });
-            
-            return { players };
-        }
+        // Турнирные функции удалены в TTM
 
         // Ввод имени пользователя (оптимизированный для компьютера)
         async function enterUserName() {
@@ -1977,7 +1851,7 @@
                     score1: score1,
                     score2: score2,
                     room_id: currentRoom.id,
-                    tournament_id: localStorage.getItem('current_tournament_id') ? parseInt(localStorage.getItem('current_tournament_id')) : null
+                    tournament_id: null
                 };
                 const res = await apiPost('/games', payload);
                 ratingChanges = res.rating_changes || {};
@@ -2064,22 +1938,7 @@
             });
         }
 
-        // Плавающая кнопка настроек API
-        (function addSettingsButton(){
-            try {
-                const btn = document.createElement('button');
-                btn.textContent = '⚙️ API';
-                btn.style.position = 'fixed';
-                btn.style.bottom = '12px';
-                btn.style.right = '12px';
-                btn.style.zIndex = '9999';
-                btn.className = 'btn btn-secondary';
-                btn.onclick = configureApiBaseUrl;
-                document.body.appendChild(btn);
-            } catch (e) {
-                console.warn('Не удалось добавить кнопку настроек API', e);
-            }
-        })();
+        // Кнопка настроек API удалена — TTM режим
 
         function showMessage(text, type) {
             const messageDiv = document.createElement('div');
