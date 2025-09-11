@@ -508,6 +508,9 @@
             </div>
             
             <div class="room-controls">
+                <div id="game-started-banner" class="hidden" style="margin: 8px 0; padding: 10px; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px;">
+                    ✅ Игра началась! Ожидаем ввод результата лидером.
+                </div>
                 <div id="leader-controls" class="hidden">
                     <button id="start-game-btn" class="btn btn-primary btn-large">
                         🚀 Начать игру
@@ -992,6 +995,22 @@
                                 updateRoomControls(updatedRoom, currentUser);
                         updateStartGameButton(updatedRoom.member_count || updatedRoom.members.length);
                     }
+
+                    // Баннер старта игры
+                    const banner = document.getElementById('game-started-banner');
+                    if (banner) {
+                        if (updatedRoom.current_game && updatedRoom.current_game.started) {
+                            banner.classList.remove('hidden');
+                    } else {
+                            banner.classList.add('hidden');
+                        }
+                    }
+
+                    // Показываем результаты всем участникам, если есть
+                    if (updatedRoom.last_result && updatedRoom.last_result.rating_changes) {
+                        const lr = updatedRoom.last_result;
+                        showGameResults(lr.rating_changes, lr.score1, lr.score2);
+                    }
                 } catch (error) {
                     // Если сервер вернул 404 — комната расформирована
                     const msg = String(error || '');
@@ -1200,10 +1219,10 @@
             });
             
             document.getElementById('new-game-btn').addEventListener('click', () => {
-                // Сбрасываем счет
-                document.getElementById('score1-input').value = '0';
-                document.getElementById('score2-input').value = '0';
-                showSection('game-result');
+                // Возвращаемся на главную страницу
+                currentRoom = null;
+                stopRoomUpdates();
+                showMainMenu();
             });
             
             // Подтверждение команд
@@ -1647,6 +1666,17 @@
             }
             
             showSection('game-result');
+
+            // Сообщаем серверу, что игра стартовала (чтобы все участники увидели)
+            try {
+                const payload = {
+                    team1_telegram_ids: selectedTeams.team1,
+                    team2_telegram_ids: selectedTeams.team2
+                };
+                if (currentRoom?.id) {
+                    apiPost(`/rooms/${currentRoom.id}/start_game`, payload).catch(()=>{});
+                }
+            } catch (e) {}
         }
 
         function setup1v1Game() {
