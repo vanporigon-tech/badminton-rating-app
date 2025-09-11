@@ -1374,6 +1374,9 @@
                 console.log('🌐 Загружаем комнаты с backend:', API_BASE_URL);
                 let serverRooms = await apiGet('/rooms/');
                 
+                // Фильтруем неактивные комнаты (на всякий случай)
+                serverRooms = (serverRooms || []).filter(r => r.is_active !== false);
+                
                 // Показываем комнаты с сервера + из localStorage (для синхронизации)
                 let allRooms = [...serverRooms];
                 
@@ -1426,12 +1429,13 @@
                     username: currentUser.username
                 });
 
-                const created = await apiPost('/rooms/', {
+                let created = await apiPost('/rooms/', {
                     name: roomName,
                     creator_telegram_id: Number(currentUser.telegram_id || currentUser.id),
                     max_players: 4
                 });
 
+                // Бэкенд может вернуть существующую активную комнату создателя — используем её
                 currentRoom = created;
             showMessage(`✅ Комната "${roomName}" создана!`, 'success');
                 showRoomDetails(created.id);
