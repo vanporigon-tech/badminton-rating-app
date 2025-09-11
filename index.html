@@ -1550,19 +1550,12 @@
         // ОПРЕДЕЛЕНИЕ СТАТУСА ПОЛЬЗОВАТЕЛЯ В КОМНАТЕ
         function getUserRoomStatus(room, user) {
             if (!room || !user) return 'not_member';
-            
             const userTelegramId = user.telegram_id || user.id;
-            
-            // Проверяем является ли пользователь участником
-            const isMember = room.members && room.members.some(member => 
-                member.player.telegram_id === userTelegramId
-            );
-            
-            if (!isMember) return 'not_member';
-            
-            // Проверяем является ли создателем
-            const isCreator = room.creator_id === userTelegramId;
-            return isCreator ? 'creator' : 'member';
+            const members = Array.isArray(room.members) ? room.members : [];
+            const memberEntry = members.find(m => m?.player?.telegram_id === userTelegramId);
+            if (!memberEntry) return 'not_member';
+            const isLeader = !!memberEntry.is_leader;
+            return isLeader ? 'creator' : 'member';
         }
         
         // ОБНОВЛЕНИЕ КНОПОК УПРАВЛЕНИЯ В ЗАВИСИМОСТИ ОТ СТАТУСА ПОЛЬЗОВАТЕЛЯ
