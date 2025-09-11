@@ -959,7 +959,7 @@
             return true;
         }
 
-        // АВТООБНОВЛЕНИЕ КОМНАТЫ ДЛЯ СИНХРОНИЗАЦИИ УЧАСТНИКОВ
+        // АВТООБНОВЛЕНИЕ КОМНАТЫ ЧЕРЕЗ БЭКЕНД
         let roomUpdateInterval = null;
         
         function startRoomUpdates(roomId) {
@@ -971,38 +971,29 @@
             // Запускаем обновления каждые 3 секунды
             roomUpdateInterval = setInterval(async () => {
                 try {
-                    // Загружаем синхронизированные комнаты
-                    const syncRooms = JSON.parse(localStorage.getItem('badminton_sync_rooms') || '[]');
-                    const updatedRoom = syncRooms.find(room => room.id === roomId);
+                    // Загружаем актуальные данные комнаты с сервера
+                    const updatedRoom = await apiGet(`/rooms/${roomId}`);
                     
-                    if (updatedRoom) {
-                        // Проверяем изменилось ли количество участников
-                        if (currentRoom && updatedRoom.member_count !== currentRoom.member_count) {
-                            console.log('👥 Обновление участников комнаты:', updatedRoom.member_count);
+                    // Обновляем состояние и интерфейс
                             currentRoom = updatedRoom;
-                            
-                            // Обновляем отображение участников
-                            if (updatedRoom.members && updatedRoom.members.length > 0) {
+                    if (updatedRoom.members && updatedRoom.members.length >= 0) {
                                 displayMembersList(updatedRoom.members);
-                                document.getElementById('member-count').textContent = updatedRoom.member_count;
-                                
-                                // ОБНОВЛЯЕМ КНОПКИ УПРАВЛЕНИЯ И ИГРЫ
+                        document.getElementById('member-count').textContent = updatedRoom.member_count || updatedRoom.members.length;
                                 updateRoomControls(updatedRoom, currentUser);
-                                updateStartGameButton(updatedRoom.member_count);
-                            }
-                        }
-                    } else {
-                        // КОМНАТА БЫЛА УДАЛЕНА/РАСФОРМИРОВАНА
-                        console.log('⚠️ КОМНАТА РАСФОРМИРОВАНА!');
-                        showMessage('⚠️ Группа расформирована', 'warning');
-                        
-                        // Возвращаемся в главное меню
+                        updateStartGameButton(updatedRoom.member_count || updatedRoom.members.length);
+                    }
+                } catch (error) {
+                    // Если сервер вернул 404 — комната расформирована
+                    const msg = String(error || '');
+                    if (msg.includes('404')) {
+                        console.log('⚠️ Комната расформирована на сервере');
+                        showMessage('⚠️ Комната расформирована', 'warning');
                         currentRoom = null;
                         stopRoomUpdates();
                         showMainMenu();
+                    } else {
+                        console.log('⚠️ Ошибка автообновления комнаты (игнорируем и пробуем далее):', error);
                     }
-                } catch (error) {
-                    console.log('⚠️ Ошибка автообновления комнаты:', error);
                 }
             }, 3000); // каждые 3 секунды
             
@@ -1229,7 +1220,7 @@
             // Show the requested section
             document.getElementById(sectionId).classList.remove('hidden');
         }
-        
+
         function showMainMenu() {
             if (currentRoom) {
                 const confirmed = confirm('Вы уверены что хотите выйти из этой комнаты?');
@@ -1430,8 +1421,8 @@
                 // Создаём пользователя на сервере (идемпотентно)
                 await apiPost('/players/', {
                     telegram_id: Number(currentUser.telegram_id || currentUser.id),
-                    first_name: currentUser.first_name,
-                    last_name: currentUser.last_name,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
                     username: currentUser.username
                 });
 
@@ -1442,7 +1433,7 @@
                 });
 
                 currentRoom = created;
-                showMessage(`✅ Комната "${roomName}" создана!`, 'success');
+            showMessage(`✅ Комната "${roomName}" создана!`, 'success');
                 showRoomDetails(created.id);
             } catch (e) {
                 console.error('❌ Ошибка создания комнаты:', e);
@@ -1464,9 +1455,9 @@
                 room = await apiGet(`/rooms/${roomId}`);
             } catch (e) {
                 console.warn('⚠️ Не удалось загрузить комнату с сервера, используем локальные данные', e);
-                const localRoom = getLocalRoomById(roomId);
-                const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
-                const staticRoom = staticRooms.find(room => room.id === roomId);
+            const localRoom = getLocalRoomById(roomId);
+            const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
+            const staticRoom = staticRooms.find(room => room.id === roomId);
                 room = localRoom || staticRoom;
             }
             
