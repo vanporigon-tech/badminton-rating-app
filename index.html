@@ -595,7 +595,17 @@
         // Версия 9.8 - ИНТЕРФЕЙС ВВОДА РЕЗУЛЬТАТОВ С ИМЕНАМИ ИГРОКОВ
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        let API_BASE_URL = localStorage.getItem('API_BASE_URL') || 'https://badminton-api-vercel.onrender.com';
+        const DEFAULT_API_BASE = 'https://badminton-api-vercel.onrender.com';
+        // Игнорируем сохранённый localhost и принудительно используем публичный API
+        (function enforcePublicApi(){
+            try {
+                const saved = localStorage.getItem('API_BASE_URL') || '';
+                if (!saved || /localhost|127\.0\.0\.1/i.test(saved)) {
+                    localStorage.setItem('API_BASE_URL', DEFAULT_API_BASE);
+                }
+            } catch(e) {}
+        })();
+        let API_BASE_URL = localStorage.getItem('API_BASE_URL') || DEFAULT_API_BASE;
 
         async function apiGet(path) {
             const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'omit' });
@@ -858,7 +868,7 @@
 
                     // Регистрируем/обновляем пользователя в backend
                     try {
-                        await fetch((localStorage.getItem('API_BASE_URL') || 'https://badminton-api-vercel.onrender.com') + '/players/', {
+                        await fetch(API_BASE_URL + '/players/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
