@@ -557,18 +557,18 @@
             <div id="score-input-section">
                 <div style="display:flex; gap:16px; align-items:flex-start; justify-content:space-between;">
                     <div style="flex:1;">
-                        <h4 id="team1-name">Команда 1</h4>
-                        <div class="score-display" id="team1-score">0</div>
+                    <h4 id="team1-name">Команда 1</h4>
+                <div class="score-display" id="team1-score">0</div>
                         <input type="number" id="score1-input" class="input-field" placeholder="Счет команды 1:" min="0" max="99">
-                    </div>
+            </div>
                     <div style="flex:1; text-align:right;">
-                        <h4 id="team2-name">Команда 2</h4>
-                        <div class="score-display" id="team2-score">0</div>
-                        <input type="number" id="score2-input" class="input-field" placeholder="Счет команды 2:" min="0" max="99">
-                    </div>
+                    <h4 id="team2-name">Команда 2</h4>
+                <div class="score-display" id="team2-score">0</div>
+                    <input type="number" id="score2-input" class="input-field" placeholder="Счет команды 2:" min="0" max="99">
+            </div>
                 </div>
                 <div style="margin-top:12px; display:flex; gap:8px;">
-                    <button id="finish-game-btn" class="btn btn-primary">Завершить игру</button>
+            <button id="finish-game-btn" class="btn btn-primary">Завершить игру</button>
                     <button id="back-to-room-from-result" class="btn btn-secondary">Назад к комнате</button>
                 </div>
             </div>
@@ -1490,11 +1490,8 @@
             try {
                 room = await apiGet(`/rooms/${roomId}`);
             } catch (e) {
-                console.warn('⚠️ Не удалось загрузить комнату с сервера, используем локальные данные', e);
-            const localRoom = getLocalRoomById(roomId);
-            const staticRooms = JSON.parse(localStorage.getItem('badminton_static_rooms') || '[]');
-            const staticRoom = staticRooms.find(room => room.id === roomId);
-                room = localRoom || staticRoom;
+                console.warn('⚠️ Не удалось загрузить комнату с сервера', e);
+                room = null; // без локальных фолбэков, чтобы не показывать расформированные комнаты
             }
             
             if (!room) {
