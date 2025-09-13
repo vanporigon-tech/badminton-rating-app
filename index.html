@@ -1468,6 +1468,26 @@
                 showRoomDetails(created.id);
             } catch (e) {
                 console.error('❌ Ошибка создания комнаты:', e);
+                // РЕТРАЙ: повторно регистрируем пользователя и ищем уже существующую комнату
+                try {
+                    await apiPost('/players/', {
+                        telegram_id: Number(currentUser.telegram_id || currentUser.id),
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username
+                    });
+                    const rooms = await apiGet('/rooms/');
+                    const myId = Number(currentUser.telegram_id || currentUser.id);
+                    const mine = (rooms || []).find(r => r.creator_id && r.members && r.members.find(m => m.player && m.player.telegram_id === myId && m.is_leader));
+                    if (mine) {
+                        showMessage('ℹ️ Используем уже созданную комнату', 'info');
+                        currentRoom = mine;
+                        showRoomDetails(mine.id);
+                        return;
+                    }
+                } catch (e2) {
+                    console.warn('⚠️ Повторное создание/поиск комнаты не удалось:', e2);
+                }
                 showMessage('❌ Ошибка создания комнаты', 'error');
             }
         }
