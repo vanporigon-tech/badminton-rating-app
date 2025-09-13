@@ -591,7 +591,6 @@
             </div>
             
             <div class="results-controls">
-                <button id="back-to-room-after-game" class="btn btn-primary">Вернуться в комнату</button>
                 <button id="new-game-btn" class="btn btn-success">Новая игра</button>
             </div>
         </div>
@@ -1217,10 +1216,6 @@
             document.getElementById('finish-game-btn').addEventListener('click', handleFinishGame);
             
             // Game results
-            document.getElementById('back-to-room-after-game').addEventListener('click', () => {
-                showRoomDetails(currentRoom.id);
-            });
-            
             document.getElementById('new-game-btn').addEventListener('click', () => {
                 // Возвращаемся на главную страницу
                 currentRoom = null;
@@ -1934,44 +1929,39 @@
             // Показываем секцию результатов
             showSection('game-results');
             
-            // Обновляем финальный счет
-            document.getElementById('final-score-display').textContent = `${score1} - ${score2}`;
+            // Обновляем финальный счет (показываем только данные текущего пользователя)
+            const meId = (currentUser && (currentUser.telegram_id || currentUser.id)) || null;
+            const myWon = (score1 > score2 && selectedTeams.team1 && selectedTeams.team1.includes(meId)) ||
+                          (score2 > score1 && selectedTeams.team2 && selectedTeams.team2.includes(meId));
+            const myScore = (selectedTeams.team1 && selectedTeams.team1.includes(meId)) ? `${score1}` : `${score2}`;
+            const myOppScore = (selectedTeams.team1 && selectedTeams.team1.includes(meId)) ? `${score2}` : `${score1}`;
+            document.getElementById('final-score-display').textContent = `${myScore} - ${myOppScore}`;
             
             // Очищаем предыдущие результаты
             const resultsList = document.getElementById('rating-results-list');
             resultsList.innerHTML = '';
             
-            // Создаем элементы для каждого игрока
-            Object.entries(ratingChanges).forEach(([playerId, change]) => {
-                const player = currentRoom.members.find(m => m.player.telegram_id == playerId);
-                if (!player) return;
-                
-                const playerName = `${player.player.first_name} ${player.player.last_name}`.trim();
-                const teamName = change.team === 1 || change.team === 'team1' ? 'Команда 1' : 'Команда 2';
-                const isWinner = change.won;
+            // Показываем результат только текущего пользователя
+            resultsList.innerHTML = '';
+            if (meId && ratingChanges[meId]) {
+                const change = ratingChanges[meId];
                 const ratingChange = Math.round(change.rating_change);
-                
-                const ratingItem = document.createElement('div');
-                ratingItem.className = `rating-item ${isWinner ? 'winner' : 'loser'}`;
-                
+                const isWinner = !!change.won;
                 const changeClass = ratingChange > 0 ? 'positive' : (ratingChange < 0 ? 'negative' : 'neutral');
                 const changeSymbol = ratingChange > 0 ? '+' : '';
-                
+                const ratingItem = document.createElement('div');
+                ratingItem.className = `rating-item ${isWinner ? 'winner' : 'loser'}`;
                 ratingItem.innerHTML = `
                     <div class="player-info">
-                        <div class="player-name">${playerName}</div>
-                        <div class="player-team">${teamName}</div>
+                        <div class="player-name">Ваш результат</div>
                     </div>
                     <div class="rating-change">
-                        <div class="rating-change-value ${changeClass}">
-                            ${changeSymbol}${ratingChange}
-                        </div>
+                        <div class="rating-change-value ${changeClass}">${changeSymbol}${ratingChange}</div>
                         <div class="old-rating">${Math.round(change.old_rating)} → ${Math.round(change.new_rating)}</div>
                     </div>
                 `;
-                
                 resultsList.appendChild(ratingItem);
-            });
+            }
         }
 
         // Кнопка настроек API удалена — TTM режим
