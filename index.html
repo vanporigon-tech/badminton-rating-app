@@ -1341,6 +1341,18 @@
                 const displayName = getDisplayName(currentUser);
                 nameElement.textContent = displayName;
             }
+            // Подтягиваем актуальный рейтинг с backend после возможного /setrank в боте
+            try {
+                const meId = Number(currentUser.telegram_id || currentUser.id);
+                if (meId) {
+                    apiGet(`/players/${meId}`).then(p => {
+                        if (p && typeof p.rating !== 'undefined') {
+                            currentUser.rating = p.rating;
+                            try { localStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                        }
+                    }).catch(()=>{});
+                }
+            } catch (e) {}
             
             console.log('✅ Имя пользователя автоматически обновлено');
         }
