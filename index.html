@@ -1819,6 +1819,13 @@
                 currentRoom = updated;
             } catch (e) {
                 console.error('❌ Ошибка присоединения к комнате:', e);
+                // Если уже в комнате — считаем успехом и просто обновляем детали
+                const msg = (e && e.message) ? e.message : '';
+                if (msg.includes('уже') || msg.includes('already')) {
+                    showMessage('Вы уже в этой комнате', 'info');
+                    showRoomDetails(currentRoom.id);
+                    return;
+                }
                 showMessage('❌ Ошибка присоединения', 'error');
                 return;
             }
