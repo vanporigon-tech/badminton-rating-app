@@ -542,12 +542,14 @@
                     <div class="team-box">
                         <h4>Команда 1 (Победители)</h4>
                         <div id="team1-players" class="players-list"></div>
-                        <button class="btn btn-small" onclick="selectPlayerForTeam(1)">+ Добавить игрока</button>
+                        <div id="team1-selector" style="margin:6px 0;"></div>
+                        <button class="btn btn-small" onclick="openPlayerDropdown(1)">+ Добавить игрока</button>
                     </div>
                     <div class="team-box">
                         <h4>Команда 2 (Проигравшие)</h4>
                         <div id="team2-players" class="players-list"></div>
-                        <button class="btn btn-small" onclick="selectPlayerForTeam(2)">+ Добавить игрока</button>
+                        <div id="team2-selector" style="margin:6px 0;"></div>
+                        <button class="btn btn-small" onclick="openPlayerDropdown(2)">+ Добавить игрока</button>
                     </div>
                 </div>
                 <button id="confirm-teams-btn" class="btn btn-primary" disabled>Подтвердить команды</button>
@@ -1765,31 +1767,59 @@
                 return;
             }
 
-            // Простой выбор - берем первого доступного игрока
-            const player = availablePlayers[0];
-            const playerId = player.player.telegram_id;
-            const playerName = `${player.player.first_name} ${player.player.last_name}`.trim();
-            
-            selectedTeams[`team${teamNumber}`].push(playerId);
-            
-            // Добавляем чип игрока
-            const teamElement = document.getElementById(`team${teamNumber}-players`);
-            const chip = document.createElement('div');
-            chip.className = 'player-chip';
-            chip.dataset.playerId = String(playerId);
-            chip.innerHTML = `${playerName} <span class="remove">×</span>`;
-            teamElement.appendChild(chip);
-            // Навешиваем безопасный обработчик удаления, чтобы атрибут onclick не ломался
-            const removeEl = chip.querySelector('.remove');
-            if (removeEl) {
-                removeEl.addEventListener('click', (ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    removePlayerFromTeam(teamNumber, String(playerId));
-                });
-            }
-            
-            updateTeamSelectionButtons();
+            openPlayerDropdown(teamNumber);
+        }
+
+        function openPlayerDropdown(teamNumber) {
+            const containerId = teamNumber === 1 ? 'team1-selector' : 'team2-selector';
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const members = currentRoom.members || [];
+            const available = members.filter(m => {
+                const pid = m.player.telegram_id;
+                return !selectedTeams.team1.includes(pid) && !selectedTeams.team2.includes(pid);
+            });
+            const select = document.createElement('select');
+            select.className = 'input-field';
+            select.style.minWidth = '220px';
+            select.innerHTML = `<option value="">— Выберите игрока —</option>` +
+                available.map(m => {
+                    const pid = m.player.telegram_id;
+                    const nm = `${m.player.first_name} ${m.player.last_name || ''}`.trim();
+                    return `<option value="${pid}">${nm}</option>`;
+                }).join('');
+            container.innerHTML = '';
+            container.appendChild(select);
+            select.addEventListener('change', () => {
+                const val = select.value;
+                if (!val) return;
+                const playerId = Number(val);
+                const member = members.find(m => m.player.telegram_id === playerId);
+                if (!member) return;
+                const playerName = `${member.player.first_name} ${member.player.last_name || ''}`.trim();
+
+                // Добавляем в выбранную команду
+                selectedTeams[`team${teamNumber}`].push(playerId);
+
+                // Рисуем чип
+                const teamElement = document.getElementById(`team${teamNumber}-players`);
+                const chip = document.createElement('div');
+                chip.className = 'player-chip';
+                chip.dataset.playerId = String(playerId);
+                chip.innerHTML = `${playerName} <span class="remove">×</span>`;
+                teamElement.appendChild(chip);
+                const removeEl = chip.querySelector('.remove');
+                if (removeEl) {
+                    removeEl.addEventListener('click', (ev) => {
+                        ev.preventDefault(); ev.stopPropagation();
+                        removePlayerFromTeam(teamNumber, String(playerId));
+                    });
+                }
+                // Сбрасываем селектор
+                container.innerHTML = '';
+                updateTeamSelectionButtons();
+            });
         }
         
         function removePlayerFromTeam(teamNumber, playerId) {
