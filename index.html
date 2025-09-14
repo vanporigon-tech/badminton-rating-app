@@ -1359,7 +1359,7 @@
                     apiGet(`/players/${meId}`).then(p => {
                         if (p && typeof p.rating !== 'undefined') {
                             currentUser.rating = p.rating;
-                            try { localStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
                         }
                     }).catch(()=>{});
                 }
