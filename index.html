@@ -1488,7 +1488,10 @@
                     username: currentUser.username
                 });
                 // Пытаемся присоединиться (с ретраями)
-                await apiPostRetry(`/rooms/${roomId}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`, {}, { retries: 3, baseDelayMs: 500 });
+                const joined = await apiPostRetry(`/rooms/${roomId}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`, {}, { retries: 3, baseDelayMs: 500 });
+                if (joined && joined.id === roomId) {
+                    currentRoom = joined; // моментально обновим состояние комнаты
+                }
             } catch (e) {
                 const msg = (e && e.message) ? e.message : '';
                 // Если уже внутри или комната заполнена — продолжаем к деталям
@@ -1738,7 +1741,7 @@
             console.log(`🎮 Кнопка игры обновлена: ${memberCount} игроков`);
         }
 
-        function handleStartGame() {
+        async function handleStartGame() {
             const memberCount = currentRoom?.member_count || currentRoom?.members?.length || 0;
             
             // Проверяем количество участников перед стартом
@@ -1769,7 +1772,19 @@
                     team2_telegram_ids: selectedTeams.team2
                 };
                 if (currentRoom?.id) {
+                    // моментально обновим UI, а сервер уведомим без ожидания
                     apiPost(`/rooms/${currentRoom.id}/start_game`, payload).catch(()=>{});
+                    // и параллельно сразу подтянем обновленную комнату, чтобы member_count/баннер были актуальны
+                    setTimeout(async () => {
+                        try {
+                            const updated = await apiGet(`/rooms/${currentRoom.id}`);
+                            if (updated) {
+                                currentRoom = updated;
+                                updateRoomControls(updated, currentUser);
+                                updateStartGameButton(updated.member_count || updated.members?.length || 0);
+                            }
+                        } catch(e) {}
+                    }, 200);
                 }
             } catch (e) {}
         }
