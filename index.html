@@ -647,6 +647,24 @@
             return res.json();
         }
 
+        // Повтор POST-запросов при нестабильной сети/холодном старте
+        async function apiPostRetry(path, body, options) {
+            const retries = (options && options.retries) || 3;
+            const baseDelayMs = (options && options.baseDelayMs) || 400;
+            let lastError;
+            for (let attempt = 0; attempt < retries; attempt++) {
+                try {
+                    return await apiPost(path, body);
+                } catch (e) {
+                    lastError = e;
+                    const delay = baseDelayMs * Math.pow(1.8, attempt);
+                    console.warn(`⚠️ POST retry ${attempt + 1}/${retries} for ${path} in ${Math.round(delay)}ms`, e);
+                    await new Promise(r => setTimeout(r, delay));
+                }
+            }
+            throw lastError || new Error('Unknown POST error');
+        }
+
         // Удалена пользовательская настройка API — используем публичный URL по умолчанию
         
         // ОТЛАДОЧНАЯ ИНФОРМАЦИЯ
@@ -1479,18 +1497,18 @@
                     username: currentUser.username
                 });
 
-                let created = await apiPost('/rooms/', {
+                let created = await apiPostRetry('/rooms/', {
                     name: roomName,
                     creator_telegram_id: Number(currentUser.telegram_id || currentUser.id),
                     max_players: 4
-                });
+                }, { retries: 3, baseDelayMs: 500 });
 
                 // Бэкенд может вернуть существующую активную комнату создателя — используем её
                 currentRoom = created;
             showMessage(`✅ Комната "${roomName}" создана!`, 'success');
                 showRoomDetails(created.id);
             } catch (e) {
-                console.error('❌ Ошибка создания комнаты:', e);
+                console.error('❌ Ошибка создания комнаты (после ретраев):', e);
                 // РЕТРАЙ: повторно регистрируем пользователя и ищем уже существующую комнату
                 try {
                     await apiPost('/players/', {
@@ -1508,10 +1526,12 @@
                         showRoomDetails(mine.id);
                         return;
                     }
+                    // Если комнаты нет, покажем читаемую ошибку
+                    showMessage('❌ Не удалось создать комнату. Попробуйте ещё раз чуть позже.', 'error');
                 } catch (e2) {
-                    console.warn('⚠️ Повторное создание/поиск комнаты не удалось:', e2);
+                    console.warn('⚠️ Повторная регистрация/поиск комнаты не удались:', e2);
+                    showMessage('❌ Не удалось создать комнату. Попробуйте ещё раз чуть позже.', 'error');
                 }
-                showMessage('❌ Ошибка создания комнаты', 'error');
             }
         }
 
