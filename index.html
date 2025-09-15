@@ -1910,11 +1910,7 @@
                 return;
             }
             
-            // Проверяем не полная ли комната
-            if (currentRoom.member_count >= currentRoom.max_players) {
-                showMessage('❌ Комната заполнена!', 'error');
-                return;
-            }
+            // Проверку заполненности доверяем серверу, чтобы избежать рассинхрона
             
             try {
                 await apiPost('/players/', {
