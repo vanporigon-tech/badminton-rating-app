@@ -533,7 +533,7 @@
 
         <!-- Ввод результата игры -->
         <div id="game-result" class="section hidden">
-            <h2>🎮 Ввод результата игры</h2>
+            <h2>🎮 Введи счет</h2>
             
             <!-- Выбор команд для 2v2 -->
             <div id="team-selection" class="team-selection hidden">
@@ -560,31 +560,20 @@
                 <div style="display:flex; gap:16px; align-items:flex-start; justify-content:space-between;">
                     <div style="flex:1;">
                     <h4 id="team1-name">Команда 1</h4>
-                <div class="score-display" id="team1-score">0</div>
+                    <div class="score-display" id="team1-score">0</div>
                         <input type="number" id="score1-input" class="input-field" placeholder="Счет команды 1:" min="0" max="99">
             </div>
                     <div style="flex:1; text-align:right;">
                     <h4 id="team2-name">Команда 2</h4>
-                <div class="score-display" id="team2-score">0</div>
+                    <div class="score-display" id="team2-score">0</div>
                     <input type="number" id="score2-input" class="input-field" placeholder="Счет команды 2:" min="0" max="99">
             </div>
                 </div>
-                <div style="margin-top:12px; text-align:center;">
-                    <label>Победитель: 
-                        <select id="winner-select" class="btn btn-secondary" style="min-width:180px;">
-                            <option value="auto" selected>Определить по счету</option>
-                            <option value="team1">Команда 1</option>
-                            <option value="team2">Команда 2</option>
-                        </select>
-                    </label>
-                </div>
                 <div style="margin-top:12px; display:flex; gap:8px;">
             <button id="finish-game-btn" class="btn btn-primary">Завершить игру</button>
-                    <button id="back-to-room-from-result" class="btn btn-secondary">Назад к комнате</button>
                 </div>
             </div>
             
-            <button id="back-to-room" class="btn btn-back">← Назад к комнате</button>
         </div>
 
         <!-- Результаты игры с рейтингом -->
@@ -624,7 +613,17 @@
         let API_BASE_URL = localStorage.getItem('API_BASE_URL') || DEFAULT_API_BASE;
 
         async function apiGet(path) {
-            const res = await fetch(`${API_BASE_URL}${path}`, { credentials: 'omit' });
+            const ts = Date.now();
+            const url = `${API_BASE_URL}${path}${path.includes('?') ? '&' : '?'}t=${ts}`;
+            const res = await fetch(url, {
+                credentials: 'omit',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
             if (!res.ok) {
                 let body = '';
                 try { body = await res.text(); } catch (e) {}
@@ -1604,12 +1603,21 @@
         function displayMembersList(members) {
             const membersUl = document.getElementById('members-ul');
             
-            if (members.length === 0) {
+            // Дедуп по telegram_id и фильтр пустых
+            const normalized = (Array.isArray(members) ? members : []).filter(m => m && (m.player || m.name));
+            const seen = new Set();
+            const deduped = [];
+            for (const m of normalized) {
+                const tid = m?.player?.telegram_id ?? m?.player?.id ?? m?.telegram_id ?? m?.id ?? Math.random();
+                if (!seen.has(tid)) { seen.add(tid); deduped.push(m); }
+            }
+
+            if (deduped.length === 0) {
                 membersUl.innerHTML = '<li>Нет участников</li>';
                 return;
             }
 
-            const membersHtml = members.map(member => {
+            const membersHtml = deduped.map(member => {
                 // ИСПОЛЬЗУЕМ ЕДИНУЮ ФУНКЦИЮ ДЛЯ ПОЛУЧЕНИЯ ИМЕНИ
                 let memberName = '';
                 
@@ -1973,8 +1981,7 @@
         async function handleFinishGame() {
             const score1 = parseInt(document.getElementById('score1-input').value);
             const score2 = parseInt(document.getElementById('score2-input').value);
-            const winnerSel = document.getElementById('winner-select');
-            const winner = winnerSel ? winnerSel.value : 'auto';
+            const winner = 'auto';
 
             if (isNaN(score1) || isNaN(score2) || score1 < 0 || score2 < 0) {
                 showMessage('Введите корректный счет обеих команд', 'error');
