@@ -1458,7 +1458,7 @@
                 }
 
                 const roomsHtml = allRooms.map(room => `
-                    <div class="room-item" onclick="showRoomDetails(${room.id})">
+                    <div class="room-item" onclick="openRoom(${room.id})">
                         <div class="room-name">${room.name}</div>
                         <div class="room-info">Участников: ${room.member_count || 1}/4</div>
                     </div>
@@ -1470,6 +1470,36 @@
                 console.error('❌ ОШИБКА ЗАГРУЗКИ КОМНАТ:', error);
                 roomsList.innerHTML = '<p>❌ Ошибка загрузки комнат<br><small>Попробуйте обновить страницу</small></p>';
             }
+        }
+
+        // Авто-вход в комнату при клике в списке
+        async function openRoom(roomId) {
+            console.log('🚪 ОТКРЫТИЕ КОМНАТЫ С АВТО-ВХОДОМ:', roomId);
+            if (!currentUser) {
+                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
+                return;
+            }
+            try {
+                // Идемпотентная регистрация пользователя
+                await apiPost('/players/', {
+                    telegram_id: Number(currentUser.telegram_id || currentUser.id),
+                    first_name: currentUser.first_name,
+                    last_name: currentUser.last_name,
+                    username: currentUser.username
+                });
+                // Пытаемся присоединиться (с ретраями)
+                await apiPostRetry(`/rooms/${roomId}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`, {}, { retries: 3, baseDelayMs: 500 });
+            } catch (e) {
+                const msg = (e && e.message) ? e.message : '';
+                // Если уже внутри или комната заполнена — продолжаем к деталям
+                if (msg.includes('уже') || msg.includes('already') || msg.includes('Комната заполнена') || msg.includes('max')) {
+                    console.warn('ℹ️ Авто-вход: пропускаем ошибку присоединения:', msg);
+                } else {
+                    console.warn('⚠️ Авто-вход: ошибка присоединения (покажем детали комнаты):', e);
+                }
+            }
+            // В любом случае показываем детали комнаты
+            await showRoomDetails(roomId);
         }
 
         async function handleCreateRoom() {
