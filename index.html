@@ -528,7 +528,6 @@
                     </button>
                 </div>
             </div>
-            <button id="back-to-main-3" class="btn btn-back">← Назад</button>
         </div>
 
         <!-- Ввод результата игры -->
@@ -1232,7 +1231,7 @@
 
             // Back buttons
             document.getElementById('back-to-main-1').addEventListener('click', showMainMenu);
-            document.getElementById('back-to-main-3').addEventListener('click', showMainMenu);
+            // back-to-main-3 кнопка удалена с интерфейса комнаты
             document.getElementById('back-to-room').addEventListener('click', () => showRoomDetails(currentRoom.id));
 
             // Room details
@@ -1924,7 +1923,8 @@
                     last_name: currentUser.last_name,
                     username: currentUser.username
                 });
-                const updated = await apiPost(`/rooms/${currentRoom.id}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`);
+                // Используем ретраи на случай холодного старта/сетевых лагов
+                const updated = await apiPostRetry(`/rooms/${currentRoom.id}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`, {}, { retries: 3, baseDelayMs: 500 });
                 currentRoom = updated;
             } catch (e) {
                 console.error('❌ Ошибка присоединения к комнате:', e);
@@ -1935,7 +1935,11 @@
                     showRoomDetails(currentRoom.id);
                     return;
                 }
-                showMessage('❌ Ошибка присоединения', 'error');
+                if (msg.includes('Комната заполнена') || msg.includes('max')) {
+                    showMessage('❌ Комната заполнена!', 'error');
+                } else {
+                    showMessage('❌ Ошибка присоединения', 'error');
+                }
                 return;
             }
             
