@@ -1232,7 +1232,10 @@
             // Back buttons
             document.getElementById('back-to-main-1').addEventListener('click', showMainMenu);
             // back-to-main-3 кнопка удалена с интерфейса комнаты
-            document.getElementById('back-to-room').addEventListener('click', () => showRoomDetails(currentRoom.id));
+            const backToRoomBtn = document.getElementById('back-to-room');
+            if (backToRoomBtn) {
+                backToRoomBtn.addEventListener('click', () => showRoomDetails(currentRoom.id));
+            }
 
             // Room details
             document.getElementById('start-game-btn').addEventListener('click', handleStartGame);
