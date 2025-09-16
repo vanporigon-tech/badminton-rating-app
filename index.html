@@ -1727,15 +1727,14 @@
             
             if (!startGameBtn) return;
             
-            // Проверяем количество участников (2 или 4 - можно играть)
+            // Не блокируем кнопку — проверку делаем в обработчике клика
+            startGameBtn.disabled = false;
             if (memberCount === 2 || memberCount === 4) {
-                startGameBtn.disabled = false;
                 startGameBtn.textContent = '🚀 Начать игру';
                 startGameBtn.className = 'btn btn-primary btn-large';
             } else {
-                startGameBtn.disabled = true;
                 startGameBtn.textContent = `⏳ Недостаточно игроков (нужно 2 или 4)`;
-                startGameBtn.className = 'btn btn-disabled btn-large';
+                startGameBtn.className = 'btn btn-warning btn-large';
             }
             
             console.log(`🎮 Кнопка игры обновлена: ${memberCount} игроков`);
@@ -1768,8 +1767,13 @@
             // Сообщаем серверу, что игра стартовала (чтобы все участники увидели)
             try {
                 const payload = {
-                    team1_telegram_ids: selectedTeams.team1,
-                    team2_telegram_ids: selectedTeams.team2
+                    // Для 1v1 заполним из текущих членов комнаты
+                    team1_telegram_ids: (memberCount === 2 && selectedTeams.team1.length === 0 && currentRoom?.members?.[0]?.player?.telegram_id)
+                        ? [currentRoom.members[0].player.telegram_id]
+                        : selectedTeams.team1,
+                    team2_telegram_ids: (memberCount === 2 && selectedTeams.team2.length === 0 && currentRoom?.members?.[1]?.player?.telegram_id)
+                        ? [currentRoom.members[1].player.telegram_id]
+                        : selectedTeams.team2
                 };
                 if (currentRoom?.id) {
                     // моментально обновим UI, а сервер уведомим без ожидания
