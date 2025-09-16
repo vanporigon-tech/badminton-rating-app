@@ -1741,7 +1741,17 @@
         }
 
         async function handleStartGame() {
-            const memberCount = currentRoom?.member_count || currentRoom?.members?.length || 0;
+            // Всегда подтягиваем актуальное состояние комнаты перед стартом
+            try {
+                if (currentRoom?.id) {
+                    const fresh = await apiGet(`/rooms/${currentRoom.id}`);
+                    if (fresh) {
+                        currentRoom = fresh;
+                    }
+                }
+            } catch(e) {}
+
+            let memberCount = currentRoom?.member_count || currentRoom?.members?.length || 0;
             
             // Проверяем количество участников перед стартом
             if (memberCount !== 2 && memberCount !== 4) {
@@ -1755,7 +1765,13 @@
             selectedTeams = { team1: [], team2: [] };
             
             if (memberCount === 2) {
-                // 1v1 - сразу показываем ввод счета с именами игроков
+                // 1v1 - формируем команды из актуальных участников и сразу показываем ввод счета
+                try {
+                    const m = currentRoom?.members || [];
+                    if (m[0]?.player?.telegram_id && m[1]?.player?.telegram_id) {
+                        selectedTeams = { team1: [m[0].player.telegram_id], team2: [m[1].player.telegram_id] };
+                    }
+                } catch(e) {}
                 setup1v1Game();
             } else {
                 // 2v2 - сначала выбор команд
