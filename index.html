@@ -1684,9 +1684,9 @@
         // ОПРЕДЕЛЕНИЕ СТАТУСА ПОЛЬЗОВАТЕЛЯ В КОМНАТЕ
         function getUserRoomStatus(room, user) {
             if (!room || !user) return 'not_member';
-            const userTelegramId = user.telegram_id || user.id;
+            const userTelegramId = Number(user.telegram_id || user.id);
             const members = Array.isArray(room.members) ? room.members : [];
-            const memberEntry = members.find(m => m?.player?.telegram_id === userTelegramId);
+            const memberEntry = members.find(m => Number(m?.player?.telegram_id) === userTelegramId);
             if (!memberEntry) return 'not_member';
             const isLeader = !!memberEntry.is_leader;
             return isLeader ? 'creator' : 'member';
