@@ -600,16 +600,13 @@
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const DEFAULT_API_BASE = 'https://badminton-api-vercel.onrender.com';
-        // Игнорируем сохранённый localhost и принудительно используем публичный API
+        // Всегда используем публичный API (исключаем любые старые значения из localStorage)
         (function enforcePublicApi(){
             try {
-                const saved = localStorage.getItem('API_BASE_URL') || '';
-                if (!saved || /localhost|127\.0\.0\.1/i.test(saved)) {
-                    localStorage.setItem('API_BASE_URL', DEFAULT_API_BASE);
-                }
+                localStorage.setItem('API_BASE_URL', DEFAULT_API_BASE);
             } catch(e) {}
         })();
-        let API_BASE_URL = localStorage.getItem('API_BASE_URL') || DEFAULT_API_BASE;
+        let API_BASE_URL = DEFAULT_API_BASE;
 
         async function apiGet(path) {
             const ts = Date.now();
@@ -1475,37 +1472,91 @@
             }
         }
 
-        // Авто-вход в комнату при клике в списке
-        async function openRoom(roomId) {
-            console.log('🚪 ОТКРЫТИЕ КОМНАТЫ С АВТО-ВХОДОМ:', roomId);
-            if (!currentUser) {
-                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
-                return;
-            }
+        // Быстрый вход в комнату с оптимистичным UI (< 1с до отображения)
+        function getPlayerRegisteredKey() {
+            const uid = String(currentUser && (currentUser.telegram_id || currentUser.id) || 'anon');
+            return `badminton_player_registered_${uid}`;
+        }
+
+        async function ensurePlayerRegisteredFast() {
             try {
-                // Идемпотентная регистрация пользователя
+                const key = getPlayerRegisteredKey();
+                if (sessionStorage.getItem(key) === '1') return true;
                 await apiPost('/players/', {
                     telegram_id: Number(currentUser.telegram_id || currentUser.id),
                     first_name: currentUser.first_name,
                     last_name: currentUser.last_name,
                     username: currentUser.username
                 });
-                // Пытаемся присоединиться (с ретраями)
-                const joined = await apiPostRetry(`/rooms/${roomId}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`, {}, { retries: 3, baseDelayMs: 500 });
-                if (joined && joined.id === roomId) {
-                    currentRoom = joined; // моментально обновим состояние комнаты
-                }
+                sessionStorage.setItem(key, '1');
+                return true;
             } catch (e) {
-                const msg = (e && e.message) ? e.message : '';
-                // Если уже внутри или комната заполнена — продолжаем к деталям
-                if (msg.includes('уже') || msg.includes('already') || msg.includes('Комната заполнена') || msg.includes('max')) {
-                    console.warn('ℹ️ Авто-вход: пропускаем ошибку присоединения:', msg);
-                } else {
-                    console.warn('⚠️ Авто-вход: ошибка присоединения (покажем детали комнаты):', e);
-                }
+                console.warn('⚠️ Регистрация игрока пропущена/необязательна для UI:', e);
+                return false;
             }
-            // В любом случае показываем детали комнаты
-            await showRoomDetails(roomId);
+        }
+
+        // Авто-вход в комнату при клике (оптимистичный)
+        async function openRoom(roomId) {
+            console.log('🚪 ОТКРЫТИЕ КОМНАТЫ (оптимистично):', roomId);
+            if (!currentUser) {
+                showMessage('ОШИБКА: пользователь не инициализирован!', 'error');
+                return;
+            }
+
+            // 1) Мгновенно показываем экран комнаты (скелетон) — без ожидания сети
+            currentRoom = { id: roomId };
+            try {
+                document.getElementById('room-leader-name').textContent = 'Загрузка комнаты...';
+                document.getElementById('member-count').textContent = '—';
+            } catch(e) {}
+            showSection('room-details');
+
+            // 2) Параллельно запускаем регистрацию, присоединение и загрузку деталей
+            const registerPromise = ensurePlayerRegisteredFast();
+
+            const joinPromise = (async () => {
+                try {
+                    const joined = await apiPostRetry(
+                        `/rooms/${roomId}/join?telegram_id=${encodeURIComponent(currentUser.telegram_id || currentUser.id)}`,
+                        {},
+                        { retries: 2, baseDelayMs: 250 }
+                    );
+                    if (joined && joined.id === roomId) currentRoom = joined;
+                } catch(e) {
+                    const msg = (e && e.message) ? e.message : '';
+                    if (msg.includes('уже') || msg.includes('already') || msg.includes('Комната заполнена') || msg.includes('max')) {
+                        console.warn('ℹ️ Авто-вход: пропускаем ошибку присоединения:', msg);
+                    } else {
+                        console.warn('⚠️ Авто-вход: ошибка присоединения (продолжаем):', e);
+                    }
+                }
+            })();
+
+            const detailsPromise = (async () => {
+                try { return await apiGet(`/rooms/${roomId}`); } catch(e) { return null; }
+            })();
+
+            // 3) Ждём максимум ~700мс для первичного контента, после — дорендерим когда придёт
+            const timeout = new Promise(resolve => setTimeout(() => resolve(null), 700));
+            const initial = await Promise.race([detailsPromise, timeout]);
+            if (initial) {
+                currentRoom = initial;
+                await showRoomDetails(roomId);
+            }
+
+            // 4) Дождаться фоновых задач и обновить UI, если было пусто
+            const [_, __, details] = await Promise.allSettled([registerPromise, joinPromise, detailsPromise]);
+            const room = (details && details.value) ? details.value : null;
+            if (room) {
+                currentRoom = room;
+                await showRoomDetails(roomId);
+            } else if (!initial) {
+                // Не получили детали, но всё равно попробуем отобразить минимально
+                try {
+                    document.getElementById('room-leader-name').textContent = 'Комната';
+                } catch(e) {}
+            }
         }
 
         async function handleCreateRoom() {
