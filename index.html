@@ -1432,34 +1432,11 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
-            // Запрашиваем стартовый рейтинг при первом вводе
+            // После ввода имени/фамилии всегда спрашиваем рейтинг через выбор ранга/числа
             try {
-                const hasRating = typeof currentUser.rating === 'number' && currentUser.rating > 0;
-                if (!hasRating) {
-                    showRatingChoice();
-                    return; // дальнейшее сохранение произойдет после выбора
-                }
-                try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
-                // Отправим на backend
-                try {
-                    await apiPost('/players/', {
-                        telegram_id: currentUser.telegram_id,
-                        first_name: currentUser.first_name,
-                        last_name: currentUser.last_name,
-                        username: currentUser.username,
-                        rating: currentUser.rating
-                    });
-                } catch(e) { console.warn('Не удалось сохранить рейтинг на backend:', e); }
-            } catch(e) { console.warn('Ошибка ввода рейтинга:', e); }
-            
-            // Обновляем отображение
-            updateUserDisplay();
-            
-            // Показываем успешное сохранение
-            const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
-            alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}`);
-            
-            console.log('🎉 ИМЕНА ПОЛЬЗОВАТЕЛЯ УСПЕШНО ОБНОВЛЕНЫ:', currentUser);
+                showRatingChoice();
+                return; // дальнейшее сохранение произойдет после выбора рейтинга
+            } catch(e) { console.warn('Ошибка показа выбора рейтинга:', e); }
         }
         
         // Автоматическое обновление отображения имени пользователя
