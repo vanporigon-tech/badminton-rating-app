@@ -603,6 +603,17 @@
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const DEFAULT_API_BASE = 'https://badminton-api-vercel.onrender.com';
+        // ГЛОБАЛЬНАЯ ОЧИСТКА localStorage ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ (одноразово по токену)
+        (function globalResetLocal(){
+            try {
+                const GLOBAL_RESET_TOKEN = 'reset-2025-09-18-1';
+                const done = localStorage.getItem('GLOBAL_RESET_DONE');
+                if (done !== GLOBAL_RESET_TOKEN) {
+                    localStorage.clear();
+                    localStorage.setItem('GLOBAL_RESET_DONE', GLOBAL_RESET_TOKEN);
+                }
+            } catch(e) {}
+        })();
         // Опциональный сброс локального состояния через параметр ?reset=1
         (function maybeResetLocal(){
             try {
