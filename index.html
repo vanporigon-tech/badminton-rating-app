@@ -896,9 +896,41 @@
                     console.log(`  Username: "${currentUser.username}"`);
                     
                     // Сохраняем в localStorage
-                    localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-
-                    // Регистрируем/обновляем пользователя в backend
+                    try {
+                        localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                        console.log('💾 Имя сохранено в localStorage:', currentUser);
+                    } catch (e) {
+                        console.log('❌ Ошибка сохранения:', e);
+                    }
+                    
+                    // Запрашиваем стартовый рейтинг при первом вводе
+                    try {
+                        const hasRating = typeof currentUser.rating === 'number' && currentUser.rating > 0;
+                        if (!hasRating) {
+                            const defaultRating = 1500;
+                            const ratingInput = prompt('Введите ваш стартовый рейтинг (например, 800-2200):', String(defaultRating));
+                            let parsed = parseInt(ratingInput, 10);
+                            if (!Number.isFinite(parsed) || parsed <= 0) parsed = defaultRating;
+                            if (parsed > 4000) parsed = 4000;
+                            currentUser.rating = parsed;
+                        }
+                        try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                        // Отправим на backend
+                        try {
+                            await apiPost('/players/', {
+                                telegram_id: currentUser.telegram_id,
+                                first_name: currentUser.first_name,
+                                last_name: currentUser.last_name,
+                                username: currentUser.username,
+                                rating: currentUser.rating
+                            });
+                        } catch(e) { console.warn('Не удалось сохранить рейтинг на backend:', e); }
+                    } catch(e) { console.warn('Ошибка ввода рейтинга:', e); }
+                    
+                    // Обновляем отображение
+                    updateUserDisplay();
+                    
+                    // Регистрируем/обновляем пользователя в backend с передачей стартового рейтинга
                     try {
                         await fetch(API_BASE_URL + '/players/', {
                             method: 'POST',
@@ -907,7 +939,8 @@
                                 telegram_id: telegramUser.id,
                                 first_name: currentUser.first_name,
                                 last_name: currentUser.last_name,
-                                username: currentUser.username
+                                username: currentUser.username,
+                                rating: currentUser.rating
                             })
                         });
                     } catch (e) {
@@ -1352,6 +1385,30 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
+            // Запрашиваем стартовый рейтинг при первом вводе
+            try {
+                const hasRating = typeof currentUser.rating === 'number' && currentUser.rating > 0;
+                if (!hasRating) {
+                    const defaultRating = 1500;
+                    const ratingInput = prompt('Введите ваш стартовый рейтинг (например, 800-2200):', String(defaultRating));
+                    let parsed = parseInt(ratingInput, 10);
+                    if (!Number.isFinite(parsed) || parsed <= 0) parsed = defaultRating;
+                    if (parsed > 4000) parsed = 4000;
+                    currentUser.rating = parsed;
+                }
+                try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                // Отправим на backend
+                try {
+                    await apiPost('/players/', {
+                        telegram_id: currentUser.telegram_id,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username,
+                        rating: currentUser.rating
+                    });
+                } catch(e) { console.warn('Не удалось сохранить рейтинг на backend:', e); }
+            } catch(e) { console.warn('Ошибка ввода рейтинга:', e); }
+            
             // Обновляем отображение
             updateUserDisplay();
             
@@ -1371,7 +1428,7 @@
                 const displayName = getDisplayName(currentUser);
                 nameElement.textContent = displayName;
             }
-            // Подтягиваем актуальный рейтинг и ранг с backend после возможного /setrank в боте
+            // Подтягиваем актуальный рейтинг и ранг с backend после возможных изменений
             try {
                 const meId = Number(currentUser.telegram_id || currentUser.id);
                 if (meId) {
