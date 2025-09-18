@@ -606,7 +606,7 @@
         // ГЛОБАЛЬНАЯ ОЧИСТКА localStorage ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ (одноразово по токену)
         (function globalResetLocal(){
             try {
-                const GLOBAL_RESET_TOKEN = 'reset-2025-09-18-1';
+                const GLOBAL_RESET_TOKEN = 'reset-2025-09-18-2';
                 const done = localStorage.getItem('GLOBAL_RESET_DONE');
                 if (done !== GLOBAL_RESET_TOKEN) {
                     localStorage.clear();
@@ -924,34 +924,25 @@
                         console.log('❌ Ошибка сохранения:', e);
                     }
                     
-                    // Запрашиваем стартовый рейтинг при первом вводе
+                    // Запросим стартовый рейтинг и при необходимости имя/фамилию для актуализации
                     try {
-                        const hasRating = typeof currentUser.rating === 'number' && currentUser.rating > 0;
-                        if (!hasRating) {
-                            const defaultRating = 1500;
-                            const ratingInput = prompt('Введите ваш стартовый рейтинг (например, 800-2200):', String(defaultRating));
+                        const defaultRating = typeof currentUser.rating === 'number' && currentUser.rating > 0 ? currentUser.rating : 1500;
+                        const maybeUpdateName = confirm('Обновить имя и рейтинг? Это потребуется один раз после очистки.');
+                        if (maybeUpdateName) {
+                            const newFirst = prompt('Введите имя:', currentUser.first_name || '') || currentUser.first_name || '';
+                            const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || '') || currentUser.last_name || '';
+                            let ratingInput = prompt('Введите ваш рейтинг (например, 800-2200):', String(defaultRating));
                             let parsed = parseInt(ratingInput, 10);
                             if (!Number.isFinite(parsed) || parsed <= 0) parsed = defaultRating;
                             if (parsed > 4000) parsed = 4000;
+                            currentUser.first_name = newFirst.trim() || currentUser.first_name;
+                            currentUser.last_name = newLast.trim();
                             currentUser.rating = parsed;
+                            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
                         }
-                        try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
-                        // Отправим на backend
-                        try {
-                            await apiPost('/players/', {
-                                telegram_id: currentUser.telegram_id,
-                                first_name: currentUser.first_name,
-                                last_name: currentUser.last_name,
-                                username: currentUser.username,
-                                rating: currentUser.rating
-                            });
-                        } catch(e) { console.warn('Не удалось сохранить рейтинг на backend:', e); }
-                    } catch(e) { console.warn('Ошибка ввода рейтинга:', e); }
-                    
-                    // Обновляем отображение
-                    updateUserDisplay();
-                    
-                    // Регистрируем/обновляем пользователя в backend с передачей стартового рейтинга
+                    } catch (e) { console.warn('Ошибка при запросе имени/рейтинга:', e); }
+
+                    // Регистрируем/обновляем пользователя в backend с передачей стартового/актуального рейтинга
                     try {
                         await fetch(API_BASE_URL + '/players/', {
                             method: 'POST',
