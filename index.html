@@ -603,6 +603,16 @@
         // Определяем URL API в зависимости от окружения
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const DEFAULT_API_BASE = 'https://badminton-api-vercel.onrender.com';
+        // Опциональный сброс локального состояния через параметр ?reset=1
+        (function maybeResetLocal(){
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('reset') === '1') {
+                    localStorage.removeItem('badminton_current_user');
+                    localStorage.removeItem('API_BASE_URL');
+                }
+            } catch(e) {}
+        })();
         // Всегда используем публичный API (исключаем любые старые значения из localStorage)
         (function enforcePublicApi(){
             try {
