@@ -473,6 +473,9 @@
         <div id="main-menu" class="section">
             <div id="user-info" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
                 <h3 id="current-user-name">Загрузка...</h3>
+                <div id="current-user-rank" style="margin-top: 6px; font-size: 14px; color: #ddd;">
+                    
+                </div>
                 <button id="enter-name-btn" class="btn btn-back" style="margin-top: 10px; font-size: 12px;">✏️ Ввести имя</button>
             </div>
             <button id="search-game-btn" class="btn btn-primary">🔍 Искать игру</button>
@@ -1368,18 +1371,44 @@
                 const displayName = getDisplayName(currentUser);
                 nameElement.textContent = displayName;
             }
-            // Подтягиваем актуальный рейтинг с backend после возможного /setrank в боте
+            // Подтягиваем актуальный рейтинг и ранг с backend после возможного /setrank в боте
             try {
                 const meId = Number(currentUser.telegram_id || currentUser.id);
                 if (meId) {
                     apiGet(`/players/${meId}`).then(p => {
-                        if (p && typeof p.rating !== 'undefined') {
-                            currentUser.rating = p.rating;
+                        if (p) {
+                            if (typeof p.rating !== 'undefined') {
+                                currentUser.rating = p.rating;
+                            }
+                            if (typeof p.initial_rank !== 'undefined') {
+                                currentUser.initial_rank = p.initial_rank;
+                            }
                             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                            // Обновим отображение ранга
+                            const rankEl = document.getElementById('current-user-rank');
+                            if (rankEl) {
+                                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                                const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                                rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
+                            }
                         }
-                    }).catch(()=>{});
+                    }).catch(()=>{
+                        const rankEl = document.getElementById('current-user-rank');
+                        if (rankEl) {
+                            const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                            const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                            rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
+                        }
+                    });
                 }
-            } catch (e) {}
+            } catch (e) {
+                const rankEl = document.getElementById('current-user-rank');
+                if (rankEl) {
+                    const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                    const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                    rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
+                }
+            }
             
             console.log('✅ Имя пользователя автоматически обновлено');
         }
