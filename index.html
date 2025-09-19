@@ -1318,7 +1318,7 @@
             const enterNameBtn = document.getElementById('enter-name-btn');
             if (enterNameBtn) {
                 enterNameBtn.addEventListener('click', () => {
-                    console.log('✏️ ВВОД ИМЕНИ ПОЛЬЗОВАТЕЛЯ (КОМПЬЮТЕР)...');
+                    console.log('✏️ КНОПКА "ВВЕСТИ ИМЯ" НАЖАТА - ЗАПУСК ПОТОКА ВВОДА ДАННЫХ');
                     enterUserName();
                 });
                 console.log('✅ Кнопка ввода имени подключена');
@@ -1418,7 +1418,7 @@
         // Ввод имени пользователя (оптимизированный для компьютера)
         // ЕДИНАЯ ФУНКЦИЯ ДЛЯ ВВОДА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)
         async function enterUserName() {
-            console.log('✏️ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)...');
+            console.log('✏️ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг) - ВЕРСИЯ 2.0...');
             
             // 1. ВВОД ИМЕНИ
             const currentFirstName = currentUser?.first_name || '';
