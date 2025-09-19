@@ -1447,11 +1447,13 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
-            // СРАЗУ после фамилии спрашиваем РЕЙТИНГ (всегда в этом потоке)
-            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
-            currentUser.rating = inputRating;
-            if (inputRank) currentUser.initial_rank = inputRank;
-            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+            // СРАЗУ после фамилии спрашиваем РЕЙТИНГ через UI-кнопки и ждем выбор
+            const sel = await waitForRatingSelection();
+            if (sel && typeof sel.value !== 'undefined') {
+                currentUser.rating = sel.value;
+                if (sel.rank) currentUser.initial_rank = sel.rank;
+                try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+            }
             // Отправим на backend
             try {
                 await apiPost('/players/', {
@@ -2391,6 +2393,10 @@
                 // Hide UI
                 const rc = document.getElementById('rating-choice');
                 if (rc) rc.classList.add('hidden');
+                // Сообщаем остальному коду, что рейтинг выбран
+                try {
+                    document.dispatchEvent(new CustomEvent('rating-selected', { detail: { value, rank } }));
+                } catch (e) {}
                 // Send to backend
                 try {
                     await apiPost('/players/', {
@@ -2407,6 +2413,18 @@
             } catch(e) {
                 console.warn('Ошибка применения рейтинга:', e);
             }
+        }
+
+        // Ожидание выбора рейтинга через UI-кнопки (F–A или Другое)
+        function waitForRatingSelection() {
+            return new Promise(resolve => {
+                const handler = (ev) => {
+                    try { document.removeEventListener('rating-selected', handler); } catch (e) {}
+                    resolve(ev.detail || {});
+                };
+                document.addEventListener('rating-selected', handler, { once: true });
+                showRatingChoice();
+            });
         }
 
         function showRatingChoice() {
