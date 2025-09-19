@@ -929,14 +929,6 @@
                     console.log(`  Фамилия: "${currentUser.last_name}"`);
                     console.log(`  Username: "${currentUser.username}"`);
                     
-                    // Сохраняем в localStorage
-                    try {
-                        localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                        console.log('💾 Имя сохранено в localStorage:', currentUser);
-                    } catch (e) {
-                        console.log('❌ Ошибка сохранения:', e);
-                    }
-                    
                     // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем данные только один раз
                     try {
                         if (!localStorage.getItem('onboard_complete_v1')) {
@@ -1462,9 +1454,11 @@
             }
             
             // 3. ВВОД РЕЙТИНГА (через UI-кнопки)
+            console.log('🎯 ПОКАЗЫВАЕМ ВЫБОР РЕЙТИНГА...');
             try { window.__ratingSelectionMode = 'onboarding'; } catch(e) {}
             const sel = await waitForRatingSelection();
             try { window.__ratingSelectionMode = null; } catch(e) {}
+            console.log('✅ РЕЙТИНГ ВЫБРАН:', sel);
 
             // 4. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
             const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
@@ -2496,10 +2490,15 @@
         }
 
         function showRatingChoice() {
+            console.log('🔍 showRatingChoice вызвана');
             const rc = document.getElementById('rating-choice');
+            console.log('🔍 rating-choice элемент:', rc);
             if (rc) {
                 rc.classList.remove('hidden');
+                console.log('✅ rating-choice показан');
                 try { rc.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+            } else {
+                console.error('❌ rating-choice элемент не найден!');
             }
         }
     </script>
