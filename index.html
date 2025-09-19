@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 2.6 - Го Бадмин с интеграцией Telegram - SIMPLE PROMPT RATING -->
+<!-- Версия 2.7 - Го Бадмин с интеграцией Telegram - RATING DISPLAY UPDATE -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -699,9 +699,9 @@
         let selectedTeams = { team1: [], team2: [] };
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.6');
-        if (window.location.search.indexOf('v=2.6') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.6';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.7');
+        if (window.location.search.indexOf('v=2.7') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.7';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1465,6 +1465,16 @@
             
             // 7. ОБНОВЛЕНИЕ UI И ПОДТВЕРЖДЕНИЕ
             updateUserDisplay();
+            
+            // Дополнительное обновление рейтинга под именем
+            const rankEl = document.getElementById('current-user-rank');
+            if (rankEl) {
+                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                const ratingVal = Math.round(currentUser.rating);
+                rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
+                console.log('✅ Рейтинг обновлен под именем:', ratingVal);
+            }
+            
             const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
             alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}${selectedRank ? `\n🏷 Ранг: ${selectedRank}` : ''}`);
             console.log('🎉 ВВОД ДАННЫХ ЗАВЕРШЕН:', currentUser);
@@ -1576,6 +1586,16 @@
             
             // 7. ОБНОВЛЕНИЕ UI
             updateUserDisplay();
+            
+            // Дополнительное обновление рейтинга под именем
+            const rankEl = document.getElementById('current-user-rank');
+            if (rankEl) {
+                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                const ratingVal = Math.round(currentUser.rating);
+                rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
+                console.log('✅ Рейтинг обновлен под именем:', ratingVal);
+            }
+            
             showMessage('✅ Данные обновлены: имя, фамилия и рейтинг!', 'success');
             
             if (currentRoom) {
