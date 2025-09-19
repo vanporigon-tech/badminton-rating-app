@@ -1434,6 +1434,8 @@
             
             // СРАЗУ показываем выбор рейтинга/ранга (F..A или "Другое") — без try/catch
             showRatingChoice();
+            // Сообщение-подсказка
+            alert('Выберите ваш ранг (F–A) или нажмите "Другое" для ввода рейтинга (до 2000).');
             return; // дальнейшее сохранение произойдет после выбора рейтинга
         }
         
@@ -2362,7 +2364,10 @@
 
         function showRatingChoice() {
             const rc = document.getElementById('rating-choice');
-            if (rc) rc.classList.remove('hidden');
+            if (rc) {
+                rc.classList.remove('hidden');
+                try { rc.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+            }
         }
     </script>
 </body>
