@@ -937,14 +937,12 @@
                         console.log('❌ Ошибка сохранения:', e);
                     }
                     
-                    // ОБЯЗАТЕЛЬНО запрашиваем рейтинг для нового пользователя
+                    // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем рейтинг только один раз
                     try {
-                        // Если нет рейтинга или он дефолтный - ОБЯЗАТЕЛЬНО спрашиваем
-                        if (!currentUser.rating || currentUser.rating === 1500 || !currentUser.first_name) {
+                        if (!localStorage.getItem('onboard_complete_v1')) {
                             const newFirst = prompt('Введите ваше имя:', currentUser.first_name || telegramUser.first_name || '') || currentUser.first_name || telegramUser.first_name || '';
                             const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || telegramUser.last_name || '') || currentUser.last_name || telegramUser.last_name || '';
                             
-                            // ВСЕГДА спрашиваем рейтинг через нашу функцию
                             const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser.rating || 1500);
                             
                             currentUser.first_name = newFirst.trim();
@@ -953,6 +951,7 @@
                             if (inputRank) currentUser.initial_rank = inputRank;
                             
                             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                            try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
                         }
                     } catch (e) { console.warn('Ошибка при запросе имени/рейтинга:', e); }
 
@@ -1448,11 +1447,14 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
-            // После фамилии — сразу спрашиваем РЕЙТИНГ (как имя/фамилия)
-            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
-            currentUser.rating = inputRating;
-            if (inputRank) currentUser.initial_rank = inputRank;
-            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+            // Рейтинг спрашиваем только при первом онбординге
+            if (!localStorage.getItem('onboard_complete_v1')) {
+                const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
+                currentUser.rating = inputRating;
+                if (inputRank) currentUser.initial_rank = inputRank;
+                try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
+            }
             // Отправим на backend
             try {
                 await apiPost('/players/', {
