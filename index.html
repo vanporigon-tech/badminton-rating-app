@@ -937,20 +937,21 @@
                         console.log('❌ Ошибка сохранения:', e);
                     }
                     
-                    // Запросим стартовый рейтинг и при необходимости имя/фамилию для актуализации
+                    // ОБЯЗАТЕЛЬНО запрашиваем рейтинг для нового пользователя
                     try {
-                        const defaultRating = typeof currentUser.rating === 'number' && currentUser.rating > 0 ? currentUser.rating : 1500;
-                        const maybeUpdateName = confirm('Обновить имя и рейтинг? Это потребуется один раз после очистки.');
-                        if (maybeUpdateName) {
-                            const newFirst = prompt('Введите имя:', currentUser.first_name || '') || currentUser.first_name || '';
-                            const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || '') || currentUser.last_name || '';
-                            let ratingInput = prompt('Введите ваш рейтинг (например, 800-2200):', String(defaultRating));
-                            let parsed = parseInt(ratingInput, 10);
-                            if (!Number.isFinite(parsed) || parsed <= 0) parsed = defaultRating;
-                            if (parsed > 4000) parsed = 4000;
-                            currentUser.first_name = newFirst.trim() || currentUser.first_name;
+                        // Если нет рейтинга или он дефолтный - ОБЯЗАТЕЛЬНО спрашиваем
+                        if (!currentUser.rating || currentUser.rating === 1500 || !currentUser.first_name) {
+                            const newFirst = prompt('Введите ваше имя:', currentUser.first_name || telegramUser.first_name || '') || currentUser.first_name || telegramUser.first_name || '';
+                            const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || telegramUser.last_name || '') || currentUser.last_name || telegramUser.last_name || '';
+                            
+                            // ВСЕГДА спрашиваем рейтинг через нашу функцию
+                            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser.rating || 1500);
+                            
+                            currentUser.first_name = newFirst.trim();
                             currentUser.last_name = newLast.trim();
-                            currentUser.rating = parsed;
+                            currentUser.rating = inputRating;
+                            if (inputRank) currentUser.initial_rank = inputRank;
+                            
                             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
                         }
                     } catch (e) { console.warn('Ошибка при запросе имени/рейтинга:', e); }
@@ -1001,16 +1002,31 @@
             const lastName = prompt('Введите вашу фамилию (необязательно):', '');
             
             if (firstName) {
+                // СРАЗУ запрашиваем рейтинг после имени и фамилии
+                const { rating: inputRating, rank: inputRank } = enterUserRating(1500);
+                
                 currentUser = {
                     id: Date.now(), // Временный ID
                     telegram_id: Date.now(),
                     first_name: firstName,
                     last_name: lastName || '',
                     username: '',
-                    rating: 1500
+                    rating: inputRating,
+                    initial_rank: inputRank
                 };
                 console.log('✅ Данные введены пользователем:', currentUser);
                 localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                
+                // Отправляем на backend
+                try {
+                    await apiPost('/players/', {
+                        telegram_id: currentUser.telegram_id,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        username: currentUser.username,
+                        rating: currentUser.rating
+                    });
+                } catch(e) { console.warn('Не удалось сохранить данные на backend:', e); }
             } else {
                 // Совсем критическая ошибка
                 currentUser = {
