@@ -937,23 +937,35 @@
                         console.log('❌ Ошибка сохранения:', e);
                     }
                     
-                    // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем рейтинг только один раз
+                    // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем данные только один раз
                     try {
                         if (!localStorage.getItem('onboard_complete_v1')) {
+                            // 1. ВВОД ИМЕНИ
                             const newFirst = prompt('Введите ваше имя:', currentUser.first_name || telegramUser.first_name || '') || currentUser.first_name || telegramUser.first_name || '';
+                            if (!newFirst) return;
+                            
+                            // 2. ВВОД ФАМИЛИИ
                             const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || telegramUser.last_name || '') || currentUser.last_name || telegramUser.last_name || '';
                             
-                            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser.rating || 1500);
+                            // 3. ВВОД РЕЙТИНГА (через UI-кнопки)
+                            try { window.__ratingSelectionMode = 'onboarding'; } catch(e) {}
+                            const sel = await waitForRatingSelection();
+                            try { window.__ratingSelectionMode = null; } catch(e) {}
+                            
+                            // 4. ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+                            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser.rating || 1500);
+                            const selectedRank = (sel && sel.rank) ? sel.rank : currentUser.initial_rank;
                             
                             currentUser.first_name = newFirst.trim();
                             currentUser.last_name = newLast.trim();
-                            currentUser.rating = inputRating;
-                            if (inputRank) currentUser.initial_rank = inputRank;
+                            currentUser.rating = selectedRating;
+                            if (selectedRank) currentUser.initial_rank = selectedRank;
                             
+                            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
                             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
                             try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
                         }
-                    } catch (e) { console.warn('Ошибка при запросе имени/рейтинга:', e); }
+                    } catch (e) { console.warn('Ошибка при запросе данных:', e); }
 
                     // Регистрируем/обновляем пользователя в backend с передачей стартового/актуального рейтинга
                     try {
@@ -994,39 +1006,12 @@
             
             // 2. API игроков не используется по ТЗ - только статические файлы и localStorage
             
-            // 3. Последний fallback - запрашиваем имя у пользователя
-            console.log('❌ Все автоматические способы неудачны, запрашиваем имя...');
+            // 3. Последний fallback - запрашиваем данные у пользователя
+            console.log('❌ Все автоматические способы неудачны, запрашиваем данные...');
             
+            // 1. ВВОД ИМЕНИ
             const firstName = prompt('Telegram данные недоступны.\n\nВведите ваше имя:', '');
-            const lastName = prompt('Введите вашу фамилию (необязательно):', '');
-            
-            if (firstName) {
-                // СРАЗУ запрашиваем рейтинг после имени и фамилии
-                const { rating: inputRating, rank: inputRank } = enterUserRating(1500);
-                
-                currentUser = {
-                    id: Date.now(), // Временный ID
-                    telegram_id: Date.now(),
-                    first_name: firstName,
-                    last_name: lastName || '',
-                    username: '',
-                    rating: inputRating,
-                    initial_rank: inputRank
-                };
-                console.log('✅ Данные введены пользователем:', currentUser);
-                localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                
-                // Отправляем на backend
-                try {
-                    await apiPost('/players/', {
-                        telegram_id: currentUser.telegram_id,
-                        first_name: currentUser.first_name,
-                        last_name: currentUser.last_name,
-                        username: currentUser.username,
-                        rating: currentUser.rating
-                    });
-                } catch(e) { console.warn('Не удалось сохранить данные на backend:', e); }
-            } else {
+            if (!firstName) {
                 // Совсем критическая ошибка
                 currentUser = {
                     id: 0,
@@ -1037,6 +1022,53 @@
                     rating: 1000
                 };
                 console.log('❌ КРИТИЧЕСКАЯ ОШИБКА: Используем гостя');
+                updateUserDisplay();
+                console.log('🏁 ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА:', currentUser);
+                return;
+            }
+            
+            // 2. ВВОД ФАМИЛИИ
+            const lastName = prompt('Введите вашу фамилию (необязательно):', '');
+            
+            // 3. ВВОД РЕЙТИНГА (через UI-кнопки)
+            try { window.__ratingSelectionMode = 'onboarding'; } catch(e) {}
+            const sel = await waitForRatingSelection();
+            try { window.__ratingSelectionMode = null; } catch(e) {}
+            
+            // 4. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : 1500;
+            const selectedRank = (sel && sel.rank) ? sel.rank : null;
+            
+            currentUser = {
+                id: Date.now(), // Временный ID
+                telegram_id: Date.now(),
+                first_name: firstName.trim(),
+                last_name: lastName ? lastName.trim() : '',
+                username: '',
+                rating: selectedRating,
+                initial_rank: selectedRank
+            };
+            
+            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
+            try {
+                localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                console.log('💾 Все данные сохранены в localStorage:', currentUser);
+            } catch (e) {
+                console.log('❌ Ошибка сохранения в localStorage:', e);
+            }
+            
+            // 6. ОТПРАВКА НА BACKEND
+            try {
+                await apiPost('/players/', {
+                    telegram_id: currentUser.telegram_id,
+                    first_name: currentUser.first_name,
+                    last_name: currentUser.last_name,
+                    username: currentUser.username,
+                    rating: currentUser.rating
+                });
+                console.log('✅ Данные отправлены на backend');
+            } catch(e) { 
+                console.warn('❌ Не удалось сохранить данные на backend:', e); 
             }
             
             updateUserDisplay();
@@ -1392,17 +1424,17 @@
         // Турнирные функции удалены в TTM
 
         // Ввод имени пользователя (оптимизированный для компьютера)
+        // ЕДИНАЯ ФУНКЦИЯ ДЛЯ ВВОДА ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)
         async function enterUserName() {
-            console.log('✏️ ЗАПРОС ИМЕНИ У ПОЛЬЗОВАТЕЛЯ (КОМПЬЮТЕР)...');
+            console.log('✏️ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)...');
             
-            // Показываем текущие данные если есть
+            // 1. ВВОД ИМЕНИ
             const currentFirstName = currentUser?.first_name || '';
             const currentLastName = currentUser?.last_name || '';
             const currentDisplay = currentFirstName && currentLastName ? 
                 `\nТекущие данные: ${currentFirstName} ${currentLastName}` : 
                 currentFirstName ? `\nТекущее имя: ${currentFirstName}` : '';
             
-            // Запрашиваем имя с улучшенным текстом
             const firstName = prompt(
                 `🏸 Го Бадмин - Ввод имени\n\nВведите ваше имя:${currentDisplay}`, 
                 currentFirstName
@@ -1418,7 +1450,7 @@
                 return;
             }
             
-            // Запрашиваем фамилию
+            // 2. ВВОД ФАМИЛИИ
             const lastName = prompt(
                 `🏸 Го Бадмин - Ввод фамилии\n\nВведите вашу фамилию (можно оставить пустым):\nИмя: ${firstName.trim()}`, 
                 currentLastName
@@ -1429,14 +1461,15 @@
                 return;
             }
             
-            // СРАЗУ после фамилии спрашиваем РЕЙТИНГ через UI-кнопки и ждем выбор
+            // 3. ВВОД РЕЙТИНГА (через UI-кнопки)
             try { window.__ratingSelectionMode = 'onboarding'; } catch(e) {}
             const sel = await waitForRatingSelection();
             try { window.__ratingSelectionMode = null; } catch(e) {}
 
-            // Пересоздаем пользователя только ПОСЛЕ выбора рейтинга
+            // 4. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
             const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
+            
             currentUser = {
                 id: currentUser?.id || Date.now(),
                 telegram_id: currentUser?.telegram_id || Date.now(),
@@ -1447,14 +1480,15 @@
                 initial_rank: selectedRank
             };
             
-            // Сохраняем в localStorage ПОСЛЕ выбора рейтинга
+            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
             try {
                 localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
-                console.log('💾 Данные (имя, фамилия, рейтинг) сохранены в localStorage:', currentUser);
+                console.log('💾 Все данные сохранены в localStorage:', currentUser);
             } catch (e) {
-                console.log('❌ Ошибка сохранения:', e);
+                console.log('❌ Ошибка сохранения в localStorage:', e);
             }
-            // Отправим на backend (после полного сбора данных)
+            
+            // 6. ОТПРАВКА НА BACKEND
             try {
                 await apiPost('/players/', {
                     telegram_id: currentUser.telegram_id,
@@ -1463,13 +1497,16 @@
                     username: currentUser.username,
                     rating: currentUser.rating
                 });
-            } catch(e) { console.warn('Не удалось сохранить данные на backend:', e); }
+                console.log('✅ Данные отправлены на backend');
+            } catch(e) { 
+                console.warn('❌ Не удалось сохранить данные на backend:', e); 
+            }
             
-            // Обновляем отображение и подтверждаем
+            // 7. ОБНОВЛЕНИЕ UI И ПОДТВЕРЖДЕНИЕ
             updateUserDisplay();
             const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
-            alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}`);
-            console.log('🎉 ДАННЫЕ ПОЛЬЗОВАТЕЛЯ УСПЕШНО ОБНОВЛЕНЫ:', currentUser);
+            alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}${selectedRank ? `\n🏷 Ранг: ${selectedRank}` : ''}`);
+            console.log('🎉 ВВОД ДАННЫХ ЗАВЕРШЕН:', currentUser);
         }
         
         // Автоматическое обновление отображения имени пользователя
@@ -1534,35 +1571,37 @@
         // Функция автозаполнения данных из Telegram
 
         
-        // Обработчик обновления имени
+        // Обработчик обновления данных пользователя (имя, фамилия, рейтинг)
         async function handleUpdateName() {
-            console.log('🔄 Обработка обновления имени...');
+            console.log('🔄 ОБНОВЛЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)...');
             
+            // 1. ВВОД ИМЕНИ
             const newFirst = prompt('Введите имя:', currentUser?.first_name || '');
             if (!newFirst) return;
             
+            // 2. ВВОД ФАМИЛИИ
             const newLast = prompt('Введите фамилию:', currentUser?.last_name || '');
             if (newLast === null) return;
             
-            // После фамилии — спрашиваем рейтинг через UI и ждём выбор
+            // 3. ВВОД РЕЙТИНГА (через UI-кнопки)
             try { window.__ratingSelectionMode = 'onboarding'; } catch(e) {}
             const sel = await waitForRatingSelection();
             try { window.__ratingSelectionMode = null; } catch(e) {}
             
+            // 4. ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
             const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
             
-            // Обновляем пользователя ТОЛЬКО после получения всех ответов
             currentUser = currentUser || {};
             currentUser.first_name = newFirst.trim();
             currentUser.last_name = (newLast || '').trim();
             currentUser.rating = selectedRating;
             if (selectedRank) currentUser.initial_rank = selectedRank;
             
-            // Сохраняем локально
+            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
             
-            // Отправляем на backend одним запросом
+            // 6. ОТПРАВКА НА BACKEND
             try {
                 await apiPost('/players/', {
                     telegram_id: currentUser.telegram_id,
@@ -1571,11 +1610,12 @@
                     username: currentUser.username,
                     rating: currentUser.rating
                 });
+                console.log('✅ Данные обновлены на backend');
             } catch (e) {
-                console.warn('Не удалось сохранить данные на backend:', e);
+                console.warn('❌ Не удалось сохранить данные на backend:', e);
             }
             
-            // UI обновление
+            // 7. ОБНОВЛЕНИЕ UI
             updateUserDisplay();
             showMessage('✅ Данные обновлены: имя, фамилия и рейтинг!', 'success');
             
