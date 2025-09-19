@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 2.7 - Го Бадмин с интеграцией Telegram - RATING DISPLAY UPDATE -->
+<!-- Версия 2.8 - Го Бадмин с интеграцией Telegram - INSTANT RATING UPDATE -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -699,9 +699,9 @@
         let selectedTeams = { team1: [], team2: [] };
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.7');
-        if (window.location.search.indexOf('v=2.7') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.7';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.8');
+        if (window.location.search.indexOf('v=2.8') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.8';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1427,10 +1427,20 @@
             const sel = waitForRatingSelection();
             console.log('✅ РЕЙТИНГ ВЫБРАН:', sel);
 
-            // 4. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+            // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА (как имя и фамилия)
             const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
             
+            // Обновляем currentUser сразу после ввода рейтинга
+            currentUser = currentUser || {};
+            currentUser.rating = selectedRating;
+            if (selectedRank) currentUser.initial_rank = selectedRank;
+            
+            // Мгновенно обновляем отображение рейтинга
+            updateUserDisplay();
+            console.log('⚡ РЕЙТИНГ ОБНОВЛЕН МГНОВЕННО:', selectedRating);
+
+            // 5. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
             currentUser = {
                 id: currentUser?.id || Date.now(),
                 telegram_id: currentUser?.telegram_id || Date.now(),
@@ -1463,17 +1473,7 @@
                 console.warn('❌ Не удалось сохранить данные на backend:', e); 
             }
             
-            // 7. ОБНОВЛЕНИЕ UI И ПОДТВЕРЖДЕНИЕ
-            updateUserDisplay();
-            
-            // Дополнительное обновление рейтинга под именем
-            const rankEl = document.getElementById('current-user-rank');
-            if (rankEl) {
-                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
-                const ratingVal = Math.round(currentUser.rating);
-                rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
-                console.log('✅ Рейтинг обновлен под именем:', ratingVal);
-            }
+            // 7. ПОДТВЕРЖДЕНИЕ (UI уже обновлен мгновенно)
             
             const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
             alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}${selectedRank ? `\n🏷 Ранг: ${selectedRank}` : ''}`);
@@ -1557,15 +1557,20 @@
             // 3. ВВОД РЕЙТИНГА (через prompt)
             const sel = waitForRatingSelection();
             
-            // 4. ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+            // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА (как имя и фамилия)
             const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
             
+            // Обновляем currentUser сразу после ввода рейтинга
             currentUser = currentUser || {};
             currentUser.first_name = newFirst.trim();
             currentUser.last_name = (newLast || '').trim();
             currentUser.rating = selectedRating;
             if (selectedRank) currentUser.initial_rank = selectedRank;
+            
+            // Мгновенно обновляем отображение
+            updateUserDisplay();
+            console.log('⚡ ДАННЫЕ ОБНОВЛЕНЫ МГНОВЕННО:', { name: newFirst, rating: selectedRating });
             
             // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
@@ -1584,17 +1589,7 @@
                 console.warn('❌ Не удалось сохранить данные на backend:', e);
             }
             
-            // 7. ОБНОВЛЕНИЕ UI
-            updateUserDisplay();
-            
-            // Дополнительное обновление рейтинга под именем
-            const rankEl = document.getElementById('current-user-rank');
-            if (rankEl) {
-                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
-                const ratingVal = Math.round(currentUser.rating);
-                rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
-                console.log('✅ Рейтинг обновлен под именем:', ratingVal);
-            }
+            // 7. ПОДТВЕРЖДЕНИЕ (UI уже обновлен мгновенно)
             
             showMessage('✅ Данные обновлены: имя, фамилия и рейтинг!', 'success');
             
