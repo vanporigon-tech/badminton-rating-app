@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 2.8 - Го Бадмин с интеграцией Telegram - INSTANT RATING UPDATE -->
+<!-- Версия 2.9 - Го Бадмин с интеграцией Telegram - FIX RANK DISPLAY -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -699,9 +699,9 @@
         let selectedTeams = { team1: [], team2: [] };
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.8');
-        if (window.location.search.indexOf('v=2.8') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.8';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 2.9');
+        if (window.location.search.indexOf('v=2.9') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=2.9';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1428,7 +1428,7 @@
             console.log('✅ РЕЙТИНГ ВЫБРАН:', sel);
 
             // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА (как имя и фамилия)
-            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
+            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
             
             // Обновляем currentUser сразу после ввода рейтинга
@@ -1438,7 +1438,7 @@
             
             // Мгновенно обновляем отображение рейтинга
             updateUserDisplay();
-            console.log('⚡ РЕЙТИНГ ОБНОВЛЕН МГНОВЕННО:', selectedRating);
+            console.log('⚡ РЕЙТИНГ ОБНОВЛЕН МГНОВЕННО:', selectedRating, 'РАНГ:', selectedRank);
 
             // 5. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
             currentUser = {
@@ -1495,6 +1495,9 @@
                 const rank0 = currentUser.initial_rank ? currentUser.initial_rank : '—';
                 const rating0 = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
                 instantRankEl.textContent = `Ранг: ${rank0}  •  Рейтинг: ${rating0}`;
+                console.log('🎯 ОТОБРАЖЕНИЕ РАНГА:', { rank: rank0, rating: rating0, element: instantRankEl });
+            } else {
+                console.log('❌ ЭЛЕМЕНТ current-user-rank НЕ НАЙДЕН!');
             }
 
             // Подтягиваем актуальный рейтинг и ранг с backend после возможных изменений
@@ -1558,7 +1561,7 @@
             const sel = waitForRatingSelection();
             
             // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА (как имя и фамилия)
-            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser?.rating || 1500);
+            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser?.rating || 1500);
             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
             
             // Обновляем currentUser сразу после ввода рейтинга
@@ -1570,7 +1573,7 @@
             
             // Мгновенно обновляем отображение
             updateUserDisplay();
-            console.log('⚡ ДАННЫЕ ОБНОВЛЕНЫ МГНОВЕННО:', { name: newFirst, rating: selectedRating });
+            console.log('⚡ ДАННЫЕ ОБНОВЛЕНЫ МГНОВЕННО:', { name: newFirst, rating: selectedRating, rank: selectedRank });
             
             // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
@@ -1601,8 +1604,8 @@
         // Ввод РЕЙТИНГА (аналогично вводу имени/фамилии)
         function enterUserRating(defaultValue) {
             // Предложим кнопки рангов F..A и опцию "Другое" через prompt-подсказку + используем готовый picker
-            const R2R = { G:600, F:700, E:800, D:900, C:1100, B:1400, A:1700 };
-            const choice = prompt('Выберите ранг (F, E, D, C, B, A) или оставьте пусто чтобы ввести число:', '');
+            const R2R = { F:600, E:700, D:800, C:900, B:1100, A:1700 };
+            const choice = prompt('Выберите ранг (F=600, E=700, D=800, C=900, B=1100, A=1700) или оставьте пусто чтобы ввести число:', '');
             if (choice && R2R[choice.toUpperCase()]) {
                 return { rating: R2R[choice.toUpperCase()], rank: choice.toUpperCase() };
             }
@@ -2428,10 +2431,10 @@
 
         // Простой ввод рейтинга через prompt (как имя и фамилия)
         function waitForRatingSelection() {
-            const R2R = { G:600, F:700, E:800, D:900, C:1100, B:1400, A:1700 };
+            const R2R = { F:600, E:700, D:800, C:900, B:1100, A:1700 };
             
             // Сначала предлагаем выбрать ранг
-            const choice = prompt('Выберите ранг (F, E, D, C, B, A) или оставьте пусто чтобы ввести число:', '');
+            const choice = prompt('Выберите ранг (F=600, E=700, D=800, C=900, B=1100, A=1700) или оставьте пусто чтобы ввести число:', '');
             if (choice && R2R[choice.toUpperCase()]) {
                 return { rating: R2R[choice.toUpperCase()], rank: choice.toUpperCase() };
             }
