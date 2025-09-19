@@ -1446,6 +1446,14 @@
                 const displayName = getDisplayName(currentUser);
                 nameElement.textContent = displayName;
             }
+            // Мгновенно отобразим текущие локальные данные (до фетча)
+            const instantRankEl = document.getElementById('current-user-rank');
+            if (instantRankEl) {
+                const rank0 = currentUser.initial_rank ? currentUser.initial_rank : '—';
+                const rating0 = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                instantRankEl.textContent = `Ранг: ${rank0}  •  Рейтинг: ${rating0}`;
+            }
+
             // Подтягиваем актуальный рейтинг и ранг с backend после возможных изменений
             try {
                 const meId = Number(currentUser.telegram_id || currentUser.id);
