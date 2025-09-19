@@ -1447,14 +1447,11 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
-            // Рейтинг спрашиваем только при первом онбординге
-            if (!localStorage.getItem('onboard_complete_v1')) {
-                const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
-                currentUser.rating = inputRating;
-                if (inputRank) currentUser.initial_rank = inputRank;
-                try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
-                try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
-            }
+            // СРАЗУ после фамилии спрашиваем РЕЙТИНГ (всегда в этом потоке)
+            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
+            currentUser.rating = inputRating;
+            if (inputRank) currentUser.initial_rank = inputRank;
+            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
             // Отправим на backend
             try {
                 await apiPost('/players/', {
