@@ -1433,7 +1433,7 @@
             }
             
             // После фамилии — сразу спрашиваем РЕЙТИНГ (как имя/фамилия)
-            const { rating: inputRating, rank: inputRank } = await enterUserRating(currentUser?.rating || 1500);
+            const { rating: inputRating, rank: inputRank } = enterUserRating(currentUser?.rating || 1500);
             currentUser.rating = inputRating;
             if (inputRank) currentUser.initial_rank = inputRank;
             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
@@ -1542,7 +1542,7 @@
         }
 
         // Ввод РЕЙТИНГА (аналогично вводу имени/фамилии)
-        async function enterUserRating(defaultValue) {
+        function enterUserRating(defaultValue) {
             // Предложим кнопки рангов F..A и опцию "Другое" через prompt-подсказку + используем готовый picker
             const R2R = { G:600, F:700, E:800, D:900, C:1100, B:1400, A:1700 };
             const choice = prompt('Выберите ранг (F, E, D, C, B, A) или оставьте пусто чтобы ввести число:', '');
