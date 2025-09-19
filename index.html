@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.0 - Го Бадмин с интеграцией Telegram - RATING TABLE UPDATE -->
+<!-- Версия 3.1 - Го Бадмин с интеграцией Telegram - AUTO RANK CALCULATION -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -699,9 +699,9 @@
         let selectedTeams = { team1: [], team2: [] };
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.0');
-        if (window.location.search.indexOf('v=3.0') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.0';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.1');
+        if (window.location.search.indexOf('v=3.1') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.1';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1492,8 +1492,15 @@
             // Мгновенно отобразим текущие локальные данные (до фетча)
             const instantRankEl = document.getElementById('current-user-rank');
             if (instantRankEl) {
-                const rank0 = currentUser.initial_rank ? currentUser.initial_rank : '—';
                 const rating0 = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                // Автоматически рассчитываем ранг по рейтингу, если ранг не задан
+                let rank0 = currentUser.initial_rank;
+                if (!rank0 && rating0 !== '—') {
+                    rank0 = getRankFromRating(rating0);
+                    // Обновляем currentUser с рассчитанным рангом
+                    currentUser.initial_rank = rank0;
+                }
+                rank0 = rank0 || '—';
                 instantRankEl.textContent = `Ранг: ${rank0}  •  Рейтинг: ${rating0}`;
                 console.log('🎯 ОТОБРАЖЕНИЕ РАНГА:', { rank: rank0, rating: rating0, element: instantRankEl });
             } else {
@@ -1516,16 +1523,28 @@
                             // Обновим отображение ранга
                             const rankEl = document.getElementById('current-user-rank');
                             if (rankEl) {
-                                const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
                                 const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                                // Автоматически рассчитываем ранг по рейтингу, если ранг не задан
+                                let rank = currentUser.initial_rank;
+                                if (!rank && ratingVal !== '—') {
+                                    rank = getRankFromRating(ratingVal);
+                                    currentUser.initial_rank = rank;
+                                }
+                                rank = rank || '—';
                                 rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
                             }
                         }
                     }).catch(()=>{
                         const rankEl = document.getElementById('current-user-rank');
                         if (rankEl) {
-                            const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
                             const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                            // Автоматически рассчитываем ранг по рейтингу, если ранг не задан
+                            let rank = currentUser.initial_rank;
+                            if (!rank && ratingVal !== '—') {
+                                rank = getRankFromRating(ratingVal);
+                                currentUser.initial_rank = rank;
+                            }
+                            rank = rank || '—';
                             rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
                         }
                     });
@@ -1533,8 +1552,14 @@
             } catch (e) {
                 const rankEl = document.getElementById('current-user-rank');
                 if (rankEl) {
-                    const rank = currentUser.initial_rank ? currentUser.initial_rank : '—';
                     const ratingVal = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                    // Автоматически рассчитываем ранг по рейтингу, если ранг не задан
+                    let rank = currentUser.initial_rank;
+                    if (!rank && ratingVal !== '—') {
+                        rank = getRankFromRating(ratingVal);
+                        currentUser.initial_rank = rank;
+                    }
+                    rank = rank || '—';
                     rankEl.textContent = `Ранг: ${rank}  •  Рейтинг: ${ratingVal}`;
                 }
             }
@@ -2429,6 +2454,24 @@
 
         // applySelectedRating удалена - используем простые prompts
 
+        // Функция для определения ранга по рейтингу
+        function getRankFromRating(rating) {
+            const R2R = { F:500, E:700, D:900, C:1100, B:1300, A:1500 };
+            
+            // Сортируем ранги по рейтингу (от большего к меньшему)
+            const sortedRanks = Object.entries(R2R).sort((a, b) => b[1] - a[1]);
+            
+            // Находим подходящий ранг
+            for (const [rank, rankRating] of sortedRanks) {
+                if (rating >= rankRating) {
+                    return rank;
+                }
+            }
+            
+            // Если рейтинг меньше F, возвращаем F
+            return 'F';
+        }
+
         // Простой ввод рейтинга через prompt (как имя и фамилия)
         function waitForRatingSelection() {
             const R2R = { F:500, E:700, D:900, C:1100, B:1300, A:1500 };
@@ -2440,11 +2483,14 @@
             }
             
             // Если не выбрали ранг - вводим число
-            let input = prompt('Введите ваш рейтинг (800-2000):', '1500');
+            let input = prompt('Введите ваш рейтинг (500-2000):', '1500');
             let parsed = parseInt(input || '', 10);
-            if (!Number.isFinite(parsed) || parsed < 800) parsed = 800;
+            if (!Number.isFinite(parsed) || parsed < 500) parsed = 500;
             if (parsed > 2000) parsed = 2000;
-            return { rating: parsed, rank: null };
+            
+            // Автоматически определяем ранг по рейтингу
+            const calculatedRank = getRankFromRating(parsed);
+            return { rating: parsed, rank: calculatedRank };
         }
 
         // showRatingChoice удалена - используем простые prompts
