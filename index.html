@@ -1432,11 +1432,27 @@
                 console.log('❌ Ошибка сохранения:', e);
             }
             
-            // СРАЗУ показываем выбор рейтинга/ранга (F..A или "Другое") — без try/catch
-            showRatingChoice();
-            // Сообщение-подсказка
-            alert('Выберите ваш ранг (F–A) или нажмите "Другое" для ввода рейтинга (до 2000).');
-            return; // дальнейшее сохранение произойдет после выбора рейтинга
+            // После фамилии — сразу спрашиваем РЕЙТИНГ (как имя/фамилия)
+            const { rating: inputRating, rank: inputRank } = await enterUserRating(currentUser?.rating || 1500);
+            currentUser.rating = inputRating;
+            if (inputRank) currentUser.initial_rank = inputRank;
+            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+            // Отправим на backend
+            try {
+                await apiPost('/players/', {
+                    telegram_id: currentUser.telegram_id,
+                    first_name: currentUser.first_name,
+                    last_name: currentUser.last_name,
+                    username: currentUser.username,
+                    rating: currentUser.rating
+                });
+            } catch(e) { console.warn('Не удалось сохранить рейтинг на backend:', e); }
+            
+            // Обновляем отображение и подтверждаем
+            updateUserDisplay();
+            const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+            alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}`);
+            console.log('🎉 ДАННЫЕ ПОЛЬЗОВАТЕЛЯ УСПЕШНО ОБНОВЛЕНЫ:', currentUser);
         }
         
         // Автоматическое обновление отображения имени пользователя
@@ -1523,6 +1539,22 @@
             } else {
                 showMessage('❌ Не удалось обновить имя', 'error');
             }
+        }
+
+        // Ввод РЕЙТИНГА (аналогично вводу имени/фамилии)
+        async function enterUserRating(defaultValue) {
+            // Предложим кнопки рангов F..A и опцию "Другое" через prompt-подсказку + используем готовый picker
+            const R2R = { G:600, F:700, E:800, D:900, C:1100, B:1400, A:1700 };
+            const choice = prompt('Выберите ранг (F, E, D, C, B, A) или оставьте пусто чтобы ввести число:', '');
+            if (choice && R2R[choice.toUpperCase()]) {
+                return { rating: R2R[choice.toUpperCase()], rank: choice.toUpperCase() };
+            }
+            // Ручной ввод
+            let input = prompt('Введите ваш рейтинг (800-2000):', String(defaultValue || 1500));
+            let parsed = parseInt(input || '', 10);
+            if (!Number.isFinite(parsed) || parsed < 800) parsed = 800;
+            if (parsed > 2000) parsed = 2000;
+            return { rating: parsed, rank: null };
         }
 
         function showSearchGames() {
