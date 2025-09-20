@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.2 - Го Бадмин с интеграцией Telegram - TOURNAMENT GAMES FIX -->
+<!-- Версия 3.3 - Го Бадмин с интеграцией Telegram - DEBUG TOURNAMENT -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.2');
-        if (window.location.search.indexOf('v=3.2') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.2';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.3');
+        if (window.location.search.indexOf('v=3.3') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.3';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -2357,9 +2357,12 @@
 
             // Получаем ID активного турнира
             let tournamentId = localStorage.getItem('current_tournament_id');
+            console.log('🎯 ТЕКУЩИЙ ТУРНИР ИЗ localStorage:', tournamentId);
             if (!tournamentId) {
+                console.log('🔄 ТУРНИР НЕ НАЙДЕН В localStorage, запрашиваем с сервера...');
                 tournamentId = await getActiveTournament();
             }
+            console.log('🏆 ФИНАЛЬНЫЙ tournament_id для игры:', tournamentId);
             
             // Отправляем игру на backend и получаем изменения рейтинга
             let ratingChanges = {};
@@ -2475,13 +2478,14 @@
             try {
                 console.log('🔍 ПОЛУЧАЕМ АКТИВНЫЙ ТУРНИР...');
                 const response = await apiGet('/tournaments/active');
+                console.log('📡 ОТВЕТ СЕРВЕРА:', response);
                 if (response && response.id) {
                     currentTournamentId = response.id;
                     localStorage.setItem('current_tournament_id', currentTournamentId);
                     console.log('✅ АКТИВНЫЙ ТУРНИР НАЙДЕН:', currentTournamentId);
                     return currentTournamentId;
                 } else {
-                    console.log('❌ АКТИВНЫЙ ТУРНИР НЕ НАЙДЕН');
+                    console.log('❌ АКТИВНЫЙ ТУРНИР НЕ НАЙДЕН, ответ:', response);
                     return null;
                 }
             } catch (e) {
