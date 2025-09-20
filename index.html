@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.1 - Го Бадмин с интеграцией Telegram - AUTO RANK CALCULATION -->
+<!-- Версия 3.2 - Го Бадмин с интеграцией Telegram - TOURNAMENT GAMES FIX -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -697,11 +697,12 @@
         // Получаем данные пользователя из Telegram Mini App
         let currentUser = null;
         let selectedTeams = { team1: [], team2: [] };
+        let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.1');
-        if (window.location.search.indexOf('v=3.1') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.1';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.2');
+        if (window.location.search.indexOf('v=3.2') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.2';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1270,6 +1271,14 @@
             
             setupEventListeners();
             updateUserDisplay(); // Отображаем информацию о пользователе
+            
+            // Получаем активный турнир при загрузке
+            getActiveTournament().then(tournamentId => {
+                if (tournamentId) {
+                    console.log('🏆 АКТИВНЫЙ ТУРНИР ЗАГРУЖЕН:', tournamentId);
+                }
+            });
+            
             showMainMenu();
             
             console.log('🎯 ПРИЛОЖЕНИЕ ПОЛНОСТЬЮ ГОТОВО!');
@@ -2346,6 +2355,12 @@
 
             console.log('🎮 ЗАВЕРШЕНИЕ ИГРЫ:', { score1, score2 });
 
+            // Получаем ID активного турнира
+            let tournamentId = localStorage.getItem('current_tournament_id');
+            if (!tournamentId) {
+                tournamentId = await getActiveTournament();
+            }
+            
             // Отправляем игру на backend и получаем изменения рейтинга
             let ratingChanges = {};
             try {
@@ -2355,18 +2370,19 @@
                     score1: score1,
                     score2: score2,
                     room_id: currentRoom.id,
-                    tournament_id: null
+                    tournament_id: tournamentId ? parseInt(tournamentId) : null
                 };
+                console.log('🎮 ОТПРАВКА ИГРЫ НА BACKEND:', payload);
                 const res = await apiPost('/games', payload);
                 ratingChanges = res.rating_changes || {};
+                console.log('✅ ИГРА ОТПРАВЛЕНА НА BACKEND, tournament_id:', tournamentId);
             } catch (e) {
                 console.error('❌ Ошибка отправки игры на сервер:', e);
                 showMessage('❌ Ошибка отправки игры на сервер', 'error');
                 return;
             }
             
-            // Сохраняем игру в турнир если он активен
-            const tournamentId = localStorage.getItem('current_tournament_id');
+            // Дополнительно сохраняем игру в localStorage для локального отслеживания
             if (tournamentId) {
                 const gameData = {
                     room_id: currentRoom.id,
@@ -2382,7 +2398,7 @@
                 tournamentGames.push(gameData);
                 localStorage.setItem(`tournament_${tournamentId}_games`, JSON.stringify(tournamentGames));
                 
-                console.log('💾 Игра сохранена в турнир:', tournamentId);
+                console.log('💾 Игра дополнительно сохранена в localStorage:', tournamentId);
             }
             
             // Сохраняем обновленную комнату
@@ -2453,6 +2469,26 @@
         }
 
         // applySelectedRating удалена - используем простые prompts
+
+        // Функция для получения активного турнира
+        async function getActiveTournament() {
+            try {
+                console.log('🔍 ПОЛУЧАЕМ АКТИВНЫЙ ТУРНИР...');
+                const response = await apiGet('/tournaments/active');
+                if (response && response.id) {
+                    currentTournamentId = response.id;
+                    localStorage.setItem('current_tournament_id', currentTournamentId);
+                    console.log('✅ АКТИВНЫЙ ТУРНИР НАЙДЕН:', currentTournamentId);
+                    return currentTournamentId;
+                } else {
+                    console.log('❌ АКТИВНЫЙ ТУРНИР НЕ НАЙДЕН');
+                    return null;
+                }
+            } catch (e) {
+                console.log('❌ ОШИБКА ПОЛУЧЕНИЯ ТУРНИРА:', e);
+                return null;
+            }
+        }
 
         // Функция для определения ранга по рейтингу
         function getRankFromRating(rating) {
