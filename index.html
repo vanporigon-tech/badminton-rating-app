@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.4 - Го Бадмин с интеграцией Telegram - FIX FIRST VISIT RATING -->
+<!-- Версия 3.5 - Го Бадмин с интеграцией Telegram - DEBUG FIRST VISIT RATING -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.4');
-        if (window.location.search.indexOf('v=3.4') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.4';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.5');
+        if (window.location.search.indexOf('v=3.5') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.5';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -935,15 +935,20 @@
                             
                             // 3. ВВОД РЕЙТИНГА (через prompt)
                             const sel = waitForRatingSelection();
+                            console.log('🎯 ВЫБРАННЫЙ РЕЙТИНГ:', sel);
                             
                             // 4. ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
-                            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : (currentUser.rating || 1500);
+                            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser.rating || 1500);
                             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser.initial_rank;
+                            
+                            console.log('📊 ФИНАЛЬНЫЕ ДАННЫЕ:', { selectedRating, selectedRank, sel });
                             
                             currentUser.first_name = newFirst.trim();
                             currentUser.last_name = newLast.trim();
                             currentUser.rating = selectedRating;
                             if (selectedRank) currentUser.initial_rank = selectedRank;
+                            
+                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ОБНОВЛЕН:', currentUser);
                             
                             // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
                             try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
@@ -1503,21 +1508,31 @@
         
         // Автоматическое обновление отображения имени пользователя
         function updateUserDisplay() {
-            if (!currentUser) return;
+            if (!currentUser) {
+                console.log('❌ currentUser не определен в updateUserDisplay');
+                return;
+            }
+            
+            console.log('🔄 updateUserDisplay вызван с currentUser:', currentUser);
             
             const nameElement = document.getElementById('current-user-name');
             if (nameElement) {
                 const displayName = getDisplayName(currentUser);
                 nameElement.textContent = displayName;
+                console.log('✅ Имя обновлено:', displayName);
             }
+            
             // Мгновенно отобразим текущие локальные данные (до фетча)
             const instantRankEl = document.getElementById('current-user-rank');
             if (instantRankEl) {
                 const rating0 = (typeof currentUser.rating !== 'undefined') ? Math.round(currentUser.rating) : '—';
+                console.log('📊 РЕЙТИНГ ДЛЯ ОТОБРАЖЕНИЯ:', rating0, 'тип:', typeof currentUser.rating);
+                
                 // Автоматически рассчитываем ранг по рейтингу, если ранг не задан
                 let rank0 = currentUser.initial_rank;
                 if (!rank0 && rating0 !== '—') {
                     rank0 = getRankFromRating(rating0);
+                    console.log('🎯 РАНГ РАССЧИТАН:', rank0, 'для рейтинга:', rating0);
                     // Обновляем currentUser с рассчитанным рангом
                     currentUser.initial_rank = rank0;
                 }
