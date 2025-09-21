@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.8 - Го Бадмин с интеграцией Telegram - FIX RATING INPUT -->
+<!-- Версия 3.9 - Го Бадмин с интеграцией Telegram - UNIFY FIRST VISIT WITH ENTER NAME -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.8');
-        if (window.location.search.indexOf('v=3.8') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.8';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.9');
+        if (window.location.search.indexOf('v=3.9') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.9';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -926,32 +926,73 @@
                     // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем данные только один раз
                     try {
                         if (!localStorage.getItem('onboard_complete_v1')) {
+                            console.log('✏️ ПЕРВЫЙ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)...');
+                            
                             // 1. ВВОД ИМЕНИ
-                            const newFirst = prompt('Введите ваше имя:', currentUser.first_name || telegramUser.first_name || '') || currentUser.first_name || telegramUser.first_name || '';
-                            if (!newFirst) return;
+                            const currentFirstName = currentUser.first_name || telegramUser.first_name || '';
+                            const firstName = prompt(
+                                `🏸 Го Бадмин - Ввод имени\n\nВведите ваше имя:`, 
+                                currentFirstName
+                            );
+                            
+                            if (firstName === null) {
+                                console.log('❌ Отмена ввода имени');
+                                return;
+                            }
+                            
+                            if (!firstName || firstName.trim() === '') {
+                                alert('❌ Имя не может быть пустым!\nПожалуйста, введите ваше имя.');
+                                return;
+                            }
                             
                             // 2. ВВОД ФАМИЛИИ
-                            const newLast = prompt('Введите фамилию (необязательно):', currentUser.last_name || telegramUser.last_name || '') || currentUser.last_name || telegramUser.last_name || '';
+                            const currentLastName = currentUser.last_name || telegramUser.last_name || '';
+                            const lastName = prompt(
+                                `🏸 Го Бадмин - Ввод фамилии\n\nВведите вашу фамилию (можно оставить пустым):\nИмя: ${firstName.trim()}`, 
+                                currentLastName
+                            );
+                            
+                            if (lastName === null) {
+                                console.log('❌ Отмена ввода фамилии');
+                                return;
+                            }
                             
                             // 3. ВВОД РЕЙТИНГА (через prompt)
+                            console.log('🎯 ЗАПРАШИВАЕМ РЕЙТИНГ...');
                             const sel = waitForRatingSelection();
-                            console.log('🎯 ВЫБРАННЫЙ РЕЙТИНГ:', sel);
-                            
-                            // 4. ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+                            console.log('✅ РЕЙТИНГ ВЫБРАН:', sel);
+
+                            // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА
                             const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser.rating || 1500);
                             const selectedRank = (sel && sel.rank) ? sel.rank : currentUser.initial_rank;
                             
-                            console.log('📊 ФИНАЛЬНЫЕ ДАННЫЕ:', { selectedRating, selectedRank, sel });
-                            
-                            currentUser.first_name = newFirst.trim();
-                            currentUser.last_name = newLast.trim();
+                            // Обновляем currentUser сразу после ввода рейтинга
                             currentUser.rating = selectedRating;
                             if (selectedRank) currentUser.initial_rank = selectedRank;
                             
-                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ОБНОВЛЕН:', currentUser);
+                            // Мгновенно обновляем отображение рейтинга
+                            updateUserDisplay();
+                            console.log('⚡ РЕЙТИНГ ОБНОВЛЕН МГНОВЕННО:', selectedRating, 'РАНГ:', selectedRank);
+
+                            // 5. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
+                            currentUser = {
+                                id: currentUser.id || Date.now(),
+                                telegram_id: currentUser.telegram_id || telegramUser.id,
+                                first_name: firstName.trim(),
+                                last_name: lastName ? lastName.trim() : '',
+                                username: currentUser.username || telegramUser.username || '',
+                                rating: selectedRating,
+                                initial_rank: selectedRank
+                            };
                             
-                            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
-                            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                            // 6. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
+                            try {
+                                localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
+                                console.log('💾 Все данные сохранены в localStorage:', currentUser);
+                            } catch (e) {
+                                console.log('❌ Ошибка сохранения в localStorage:', e);
+                            }
+                            
                             try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
                         }
                     } catch (e) { console.warn('Ошибка при запросе данных:', e); }
