@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.5 - Го Бадмин с интеграцией Telegram - DEBUG FIRST VISIT RATING -->
+<!-- Версия 3.6 - Го Бадмин с интеграцией Telegram - DEBUG RANK CALCULATION -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.5');
-        if (window.location.search.indexOf('v=3.5') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.5';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.6');
+        if (window.location.search.indexOf('v=3.6') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.6';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -2525,17 +2525,24 @@
         function getRankFromRating(rating) {
             const R2R = { F:500, E:700, D:900, C:1100, B:1300, A:1500 };
             
+            console.log('🔍 РАСЧЕТ РАНГА для рейтинга:', rating);
+            console.log('📊 ТАБЛИЦА РАНГОВ:', R2R);
+            
             // Сортируем ранги по рейтингу (от большего к меньшему)
             const sortedRanks = Object.entries(R2R).sort((a, b) => b[1] - a[1]);
+            console.log('📈 ОТСОРТИРОВАННЫЕ РАНГИ:', sortedRanks);
             
             // Находим подходящий ранг
             for (const [rank, rankRating] of sortedRanks) {
+                console.log(`🔍 Проверяем ${rank}: ${rankRating} <= ${rating}?`, rating >= rankRating);
                 if (rating >= rankRating) {
+                    console.log(`✅ НАЙДЕН РАНГ: ${rank} для рейтинга ${rating}`);
                     return rank;
                 }
             }
             
             // Если рейтинг меньше F, возвращаем F
+            console.log('⚠️ РЕЙТИНГ МЕНЬШЕ F, возвращаем F');
             return 'F';
         }
 
