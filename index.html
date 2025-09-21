@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.3 - Го Бадмин с интеграцией Telegram - DEBUG TOURNAMENT -->
+<!-- Версия 3.4 - Го Бадмин с интеграцией Telegram - FIX FIRST VISIT RATING -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.3');
-        if (window.location.search.indexOf('v=3.3') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.3';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.4');
+        if (window.location.search.indexOf('v=3.4') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.4';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -953,7 +953,7 @@
 
                     // Регистрируем/обновляем пользователя в backend с передачей стартового/актуального рейтинга
                     try {
-                        await fetch(API_BASE_URL + '/players/', {
+                        const response = await fetch(API_BASE_URL + '/players/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -964,6 +964,18 @@
                                 rating: currentUser.rating
                             })
                         });
+                        
+                        if (response.ok) {
+                            const userData = await response.json();
+                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ЗАРЕГИСТРИРОВАН В API:', userData);
+                            
+                            // Обновляем данные пользователя с сервера
+                            if (userData.rating) currentUser.rating = userData.rating;
+                            if (userData.initial_rank) currentUser.initial_rank = userData.initial_rank;
+                            
+                            // Сохраняем обновленные данные
+                            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
+                        }
                     } catch (e) {
                         console.warn('Не удалось зарегистрировать пользователя в API:', e);
                     }
