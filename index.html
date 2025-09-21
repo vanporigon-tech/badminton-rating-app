@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.7 - Го Бадмин с интеграцией Telegram - FIX RANK DISPLAY -->
+<!-- Версия 3.8 - Го Бадмин с интеграцией Telegram - FIX RATING INPUT -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.7');
-        if (window.location.search.indexOf('v=3.7') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.7';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.8');
+        if (window.location.search.indexOf('v=3.8') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.8';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -1035,7 +1035,7 @@
             const sel = waitForRatingSelection();
             
             // 4. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
-            const selectedRating = (sel && typeof sel.value !== 'undefined') ? sel.value : 1500;
+            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : 1500;
             const selectedRank = (sel && sel.rank) ? sel.rank : null;
             
             currentUser = {
