@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Версия 3.9 - Го Бадмин с интеграцией Telegram - UNIFY FIRST VISIT WITH ENTER NAME -->
+<!-- Версия 4.0 - Го Бадмин с интеграцией Telegram - EXACT COPY OF ENTER NAME -->
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -700,9 +700,9 @@
         let currentTournamentId = null;
         
         // Принудительное обновление кеша
-        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 3.9');
-        if (window.location.search.indexOf('v=3.9') === -1) {
-            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=3.9';
+        console.log('🔥 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ КЕША - ВЕРСИЯ 4.0');
+        if (window.location.search.indexOf('v=4.0') === -1) {
+            window.location.href = window.location.href + (window.location.search ? '&' : '?') + 'v=4.0';
         }
         
         // ОЖИДАНИЕ И ПРОВЕРКА TELEGRAM WebApp
@@ -926,12 +926,17 @@
                     // ПЕРВЫЙ ОНБОРДИНГ: спрашиваем данные только один раз
                     try {
                         if (!localStorage.getItem('onboard_complete_v1')) {
-                            console.log('✏️ ПЕРВЫЙ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг)...');
+                            console.log('✏️ ПЕРВЫЙ ВВОД ДАННЫХ ПОЛЬЗОВАТЕЛЯ (имя, фамилия, рейтинг) - ВЕРСИЯ 2.0...');
                             
                             // 1. ВВОД ИМЕНИ
-                            const currentFirstName = currentUser.first_name || telegramUser.first_name || '';
+                            const currentFirstName = currentUser?.first_name || telegramUser.first_name || '';
+                            const currentLastName = currentUser?.last_name || telegramUser.last_name || '';
+                            const currentDisplay = currentFirstName && currentLastName ? 
+                                `\nТекущие данные: ${currentFirstName} ${currentLastName}` : 
+                                currentFirstName ? `\nТекущее имя: ${currentFirstName}` : '';
+                            
                             const firstName = prompt(
-                                `🏸 Го Бадмин - Ввод имени\n\nВведите ваше имя:`, 
+                                `🏸 Го Бадмин - Ввод имени\n\nВведите ваше имя:${currentDisplay}`, 
                                 currentFirstName
                             );
                             
@@ -946,7 +951,6 @@
                             }
                             
                             // 2. ВВОД ФАМИЛИИ
-                            const currentLastName = currentUser.last_name || telegramUser.last_name || '';
                             const lastName = prompt(
                                 `🏸 Го Бадмин - Ввод фамилии\n\nВведите вашу фамилию (можно оставить пустым):\nИмя: ${firstName.trim()}`, 
                                 currentLastName
@@ -962,11 +966,12 @@
                             const sel = waitForRatingSelection();
                             console.log('✅ РЕЙТИНГ ВЫБРАН:', sel);
 
-                            // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА
-                            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser.rating || 1500);
-                            const selectedRank = (sel && sel.rank) ? sel.rank : currentUser.initial_rank;
+                            // 4. МГНОВЕННОЕ ОБНОВЛЕНИЕ РЕЙТИНГА (как имя и фамилия)
+                            const selectedRating = (sel && typeof sel.rating !== 'undefined') ? sel.rating : (currentUser?.rating || 1500);
+                            const selectedRank = (sel && sel.rank) ? sel.rank : currentUser?.initial_rank;
                             
                             // Обновляем currentUser сразу после ввода рейтинга
+                            currentUser = currentUser || {};
                             currentUser.rating = selectedRating;
                             if (selectedRank) currentUser.initial_rank = selectedRank;
                             
@@ -976,16 +981,16 @@
 
                             // 5. СОЗДАНИЕ/ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ (только после всех вводов)
                             currentUser = {
-                                id: currentUser.id || Date.now(),
-                                telegram_id: currentUser.telegram_id || telegramUser.id,
+                                id: currentUser?.id || Date.now(),
+                                telegram_id: currentUser?.telegram_id || telegramUser.id,
                                 first_name: firstName.trim(),
                                 last_name: lastName ? lastName.trim() : '',
-                                username: currentUser.username || telegramUser.username || '',
+                                username: currentUser?.username || telegramUser.username || '',
                                 rating: selectedRating,
                                 initial_rank: selectedRank
                             };
                             
-                            // 6. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
+                            // 5. СОХРАНЕНИЕ ВСЕХ ДАННЫХ
                             try {
                                 localStorage.setItem('badminton_current_user', JSON.stringify(currentUser));
                                 console.log('💾 Все данные сохранены в localStorage:', currentUser);
@@ -993,38 +998,30 @@
                                 console.log('❌ Ошибка сохранения в localStorage:', e);
                             }
                             
+                            // 6. ОТПРАВКА НА BACKEND
+                            try {
+                                await apiPost('/players/', {
+                                    telegram_id: currentUser.telegram_id,
+                                    first_name: currentUser.first_name,
+                                    last_name: currentUser.last_name,
+                                    username: currentUser.username,
+                                    rating: currentUser.rating
+                                });
+                                console.log('✅ Данные отправлены на backend');
+                            } catch(e) { 
+                                console.warn('❌ Не удалось сохранить данные на backend:', e); 
+                            }
+                            
+                            // 7. ПОДТВЕРЖДЕНИЕ (UI уже обновлен мгновенно)
+                            const fullName = `${currentUser.first_name} ${currentUser.last_name}`.trim();
+                            alert(`✅ Данные сохранены!\n\n👤 ${fullName}\n⭐️ Рейтинг: ${currentUser.rating}${selectedRank ? `\n🏷 Ранг: ${selectedRank}` : ''}`);
+                            console.log('🎉 ВВОД ДАННЫХ ЗАВЕРШЕН:', currentUser);
+                            
                             try { localStorage.setItem('onboard_complete_v1', '1'); } catch(e) {}
                         }
                     } catch (e) { console.warn('Ошибка при запросе данных:', e); }
 
-                    // Регистрируем/обновляем пользователя в backend с передачей стартового/актуального рейтинга
-                    try {
-                        const response = await fetch(API_BASE_URL + '/players/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                telegram_id: telegramUser.id,
-                                first_name: currentUser.first_name,
-                                last_name: currentUser.last_name,
-                                username: currentUser.username,
-                                rating: currentUser.rating
-                            })
-                        });
-                        
-                        if (response.ok) {
-                            const userData = await response.json();
-                            console.log('✅ ПОЛЬЗОВАТЕЛЬ ЗАРЕГИСТРИРОВАН В API:', userData);
-                            
-                            // Обновляем данные пользователя с сервера
-                            if (userData.rating) currentUser.rating = userData.rating;
-                            if (userData.initial_rank) currentUser.initial_rank = userData.initial_rank;
-                            
-                            // Сохраняем обновленные данные
-                            try { localStorage.setItem('badminton_current_user', JSON.stringify(currentUser)); } catch(e) {}
-                        }
-                    } catch (e) {
-                        console.warn('Не удалось зарегистрировать пользователя в API:', e);
-                    }
+                    // Backend регистрация уже выполнена в блоке первого входа
                     updateUserDisplay();
                     return;
                 }
