@@ -2350,14 +2350,8 @@
                 // Если уже в комнате — считаем успехом и просто обновляем детали
                 const msg = (e && e.message) ? e.message : '';
                 if (msg.includes('уже') || msg.includes('already')) {
-                    showMessage('Вы уже в этой комнате', 'info');
                     showRoomDetails(currentRoom.id);
                     return;
-                }
-                if (msg.includes('Комната заполнена') || msg.includes('max')) {
-                    showMessage('❌ Комната заполнена!', 'error');
-                } else {
-                    showMessage('❌ Ошибка присоединения', 'error');
                 }
                 return;
             }
