@@ -13,7 +13,17 @@ load_dotenv()
 # Конфигурация
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8401405889:AAEGFi1tCX6k2m4MyGBoAY3MdJC63SXFba0')
 MINI_APP_URL = os.getenv('MINI_APP_URL', 'https://vanporigon-tech.github.io/badminton-rating-app')
-ADMIN_CHAT_ID = 972717950
+def _load_admin_ids():
+    env_value = os.getenv("ADMIN_IDS", "").strip()
+    ids = {972717950, 1119274177}
+    if env_value:
+        for token in env_value.split(","):
+            token = token.strip()
+            if token.isdigit():
+                ids.add(int(token))
+    return ids
+
+ADMIN_IDS = _load_admin_ids()
 
 def send_message(chat_id, text, reply_markup=None):
     """Отправка сообщения в чат"""
@@ -116,7 +126,7 @@ def handle_admin_clear_rooms(chat_id):
     """Админская команда очистки комнат"""
     print(f"🗑️ Админская команда очистки комнат от {chat_id}")
     
-    if chat_id != ADMIN_CHAT_ID:
+    if chat_id not in ADMIN_IDS:
         return send_message(chat_id, "❌ У вас нет прав для выполнения этой команды.")
     
     # Здесь можно добавить вызов API для очистки комнат
