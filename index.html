@@ -1190,7 +1190,9 @@
                         showMessage('⚠️ Комната расформирована', 'warning');
                         currentRoom = null;
                         stopRoomUpdates();
-                        showMainMenu();
+                        // Прямой переход на главную страницу без проверки комнаты
+                        updateUserDisplay();
+                        showSection('main-menu');
                     } else {
                         console.log('⚠️ Ошибка автообновления комнаты (игнорируем и пробуем далее):', error);
                     }
@@ -1400,7 +1402,9 @@
                 // Возвращаемся на главную страницу
                 currentRoom = null;
                 stopRoomUpdates();
-                showMainMenu();
+                // Прямой переход на главную страницу без проверки комнаты
+                updateUserDisplay();
+                showSection('main-menu');
             });
             
             // Подтверждение команд
@@ -2392,7 +2396,9 @@
             // Возвращаемся в главное меню
             currentRoom = null;
             stopRoomUpdates();
-            showMainMenu();
+            // Прямой переход на главную страницу без проверки комнаты
+            updateUserDisplay();
+            showSection('main-menu');
         }
 
         async function handleFinishGame() {
